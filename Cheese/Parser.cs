@@ -116,6 +116,16 @@ namespace Cheese
 			}
 			return null;
 		}
+		public ParseNode Dig() {
+			if(Children == null)
+				return this;
+			else {
+				if(Children.Count == 1)
+					return Children[0].Dig();
+				else
+					return this;
+			}
+		}
 	}
 
 	class Parser {
