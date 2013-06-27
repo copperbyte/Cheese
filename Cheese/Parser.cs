@@ -92,6 +92,28 @@ namespace Cheese
 				Builder.Append("C").Append(Children.Count);
 			return Builder.ToString();
 		}
+	
+		// True if this node is a terminal, or chains singularly down to a terminal
+		public bool IsTerminal() {
+			if(Type == EType.TERMINAL)
+				return true;
+			else if(Children != null) {
+				if(Children.Count == 1) {
+					return Children[0].IsTerminal();
+				}
+			}
+			return false;
+		}
+		public Token GetTerminal() {
+			if(Type == EType.TERMINAL)
+				return Token;
+			else if(Children != null) {
+				if(Children.Count == 1) {
+					return Children[0].GetTerminal();
+				}
+			}
+			return null;
+		}
 	}
 
 	class Parser {
