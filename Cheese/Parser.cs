@@ -13,6 +13,8 @@ namespace Cheese
 			TERMINAL,
 			UNOP,
 			BINOP,
+			UN_OP_WRAP,
+			BIN_OP_WRAP,
 			FIELD_SEP,
 			FIELD,
 			FIELD_LIST,
@@ -684,13 +686,21 @@ namespace Cheese
 			          Curr.IsBracket("(")) {
 				Exp.Add(ParsePrefixExp());
 			} else if(UnOps.Contains(Curr.Value)) {
-				Exp.Add(ParseUnOp());
-				Exp.Add(ParseExp());
+				ParseNode UnOpWrap = new ParseNode(ParseNode.EType.UN_OP_WRAP);
+				UnOpWrap.Add(ParseUnOp());
+				UnOpWrap.Add(ParseExp());
+				Exp.Add(UnOpWrap);
 			}
 
 			while (BinOps.Contains(Curr.Value)) {
-				Exp.Add(ParseBinOp());
-				Exp.Add(ParseExp());
+				ParseNode BinOpWrap = new ParseNode(ParseNode.EType.BIN_OP_WRAP);
+
+				BinOpWrap.Children = new List<ParseNode>(Exp.Children);
+				Exp.Children.Clear();
+				BinOpWrap.Add(ParseBinOp());
+				BinOpWrap.Add(ParseExp());
+
+				Exp.Add(BinOpWrap);
 			}
 
 			return Exp;
