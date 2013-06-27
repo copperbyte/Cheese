@@ -57,13 +57,28 @@ namespace Cheese
 				CR = Right.Children[I];
 
 				string LV = CL.GetTerminal().Value;
-				string RV = CR.GetTerminal().Value;
 
-				Console.WriteLine("{0} <= {1}", LV, RV);
+				if(CR.IsTerminal()) {
+					string RV = CR.GetTerminal().Value;
+					Console.WriteLine("{0} <= {1}", LV, RV);
+				
+				} else {
+					CR = CR.Dig();
+					if(CR.Type == ParseNode.EType.BIN_OP_WRAP) {
+						Token Op = CR.Children[1].Token;
+						ParseNode BL = CR.Children[0].Dig();
+						ParseNode BR = CR.Children[2].Dig();
+
+						Console.WriteLine("{0} <= {1} {2} {3}", LV, Op.Value, BL.GetTerminal().Value, BR.GetTerminal().Value); 
+
+					}
+
+				}
+			
 			}
-
-
 		}
+
+
 	}
 }
 
