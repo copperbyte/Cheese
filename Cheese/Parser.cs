@@ -97,7 +97,7 @@ namespace Cheese
 	class Parser {
 		//TextReader Reader;
 		Scanner Scanner;
-		Token Curr, Look;
+		Token Curr, Look, LookFar;
 
 		SortedSet<string> UnOps = new SortedSet<string>(){ "-", "not", "#" }, 
 		BinOps = new SortedSet<string>(){ "+", "-", "*", "/", "^", "%", "..", 
@@ -112,22 +112,26 @@ namespace Cheese
 
 		public void Advance() {
 			Curr = Look;
-			Look = Scanner.ReadToken();
+			Look = LookFar;
+			LookFar = Scanner.ReadToken();
 
-			if(Curr != null)
-				Console.WriteLine(" {0} : {1} : {2} : {3} : {4} : {5} ", Curr.Counter, Curr.Position, Curr.Line, Curr.Column, Curr.Type, Curr.Value);
+			//if(Curr != null)
+			//	Console.WriteLine(" {0} : {1} : {2} : {3} : {4} : {5} ", Curr.Counter, Curr.Position, Curr.Line, Curr.Column, Curr.Type, Curr.Value);
 
-			if(Curr != null && Curr.Counter == 3677) {
-				Console.WriteLine("BREAKPOINT");
-			}
+			//if(Curr != null && Curr.Counter == 3677) {
+			//	Console.WriteLine("BREAKPOINT");
+			//}
 		}
 
-		public void Parse() {
-			Advance();
+		public ParseNode Parse() {
+			Advance(); // prime both lookaheads
+			Advance(); 
 
 			ParseNode RootChunk = ParseChunk();
-			Console.WriteLine("Parse Complete");
-			PrintTree(RootChunk, 0);
+			//Console.WriteLine("Parse Complete");
+			return RootChunk;
+			//Console.WriteLine("Parse Complete");
+			//PrintTree(RootChunk, 0);
 			/*
 			while(true) {
 				Token Tok = Scanner.ReadToken();
@@ -142,10 +146,13 @@ namespace Cheese
 			*/
 		}
 
-		public void PrintTree(ParseNode Node, int Level) {
+		public void PrintTree(ParseNode Node, int Level=0) {
 
 			for(int i = 0; i < Level; i++) {
-				Console.Write("\t");
+				if(Level % 2 == 0)
+					Console.Write("  ");
+				else 
+					Console.Write("..");
 			}
 
 			Console.Write("{0} : ", Node.Type);
@@ -202,7 +209,7 @@ namespace Cheese
 				Advance();
 				return;
 			} 
-			throw new ParseException(Expectation.ToString() /* FIXME */, Curr);
+			throw new ParseException(Expectation.ToString(), Curr);
 		}
 
 		internal void Match(SortedSet<string> Expectation, ParseNode Parent) {

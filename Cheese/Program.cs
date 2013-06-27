@@ -14,21 +14,18 @@ namespace Cheese
 			//StringReader Reader = new StringReader (Input);
 			//Scanner Scans = new Scanner(Reader);
 			//FileStream TestFile = new FileStream("my_rules.lua",FileMode.Open);
-			FileStream TestFile = new FileStream("test.lua",FileMode.Open);
+			//FileStream TestFile = new FileStream("test.lua",FileMode.Open);
+			FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_one.slua",FileMode.Open);
 
 			StreamReader TestFileReader = new StreamReader(TestFile);
 
 			Parser Parsy = new Parser(TestFileReader);
-			Parsy.Parse();
+			ParseNode Root = Parsy.Parse();
+			Parsy.PrintTree(Root);
 
-			/*Scanner Scans = new Scanner(TestFileReader);
+			Compiler Comper = new Compiler();
+			Comper.Compile(Root);
 
-			while(true) {
-				Token Tok = Scans.ReadToken();
-				if(Tok == null)
-					break;
-				Console.WriteLine(" {0} : {1} : {2} : {3} : {4} : {5} ", Tok.Counter, Tok.Position, Tok.Line, Tok.Column, Tok.Type, Tok.Value);
-			}*/
 
 			Console.ReadKey();
 		}
