@@ -205,10 +205,7 @@ namespace Cheese
 			}
 		}
 
-		public void PrintTree() {
-			;
 
-		}
 
 		public class ParseException : Exception {
 			string Expectation;
