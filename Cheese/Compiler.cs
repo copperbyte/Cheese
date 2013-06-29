@@ -6,10 +6,11 @@ using System.Collections.Generic;
 
 namespace Cheese
 {
-	using VList = List<string>;
+	using VList = List<Value>;
 
 	class Instruction {
 		public enum OP {
+			ERROR,
 			LOADK,
 			SETGLOBAL,
 			GETGLOBAL,
@@ -30,15 +31,50 @@ namespace Cheese
 
 	}
 
+	class ConstEntry {
+		internal int Index;
+
+		internal double NumberVal;
+		internal string StringVal;
+	}
+
+	class Value {
+		public enum ESide {
+			LEFT,
+			RIGHT
+		}
+		public enum ELoc {
+			LOCAL,
+			GLOBAL,
+			UPVAL,
+			TABLE,
+			CONSTANT,
+			REGISTER
+		}
+		internal ESide Side;
+		internal ELoc Loc;
+		internal int Index;
+	}
+
+
+
+
 	class Compiler
-	{
+	{ 
 
 
-		SortedSet<int> UsedTemps;
+
+		SortedSet<int> UsedRegs;
+		List<ConstEntry> ConstantTable;
+
+		List<Instruction> Instructions;
 		public Compiler()
 		{
-			UsedTemps = new SortedSet<int>();
 
+			UsedRegs = new SortedSet<int>();
+			ConstantTable = new List<ConstEntry>();
+		
+			Instructions = new List<Instruction>();
 		}
 
 
@@ -51,15 +87,63 @@ namespace Cheese
 				if(Child.Type == ParseNode.EType.BLOCK)
 					CompileBlock(Child);
 			}
+
+			PrintConstants();
+			PrintInstructions();
 		}
 
-		int GetTemp() {
+		void PrintConstants() {
+			foreach(ConstEntry Const in ConstantTable) {
+				if(Const.StringVal != null)
+					Console.WriteLine("CS {0} := {1}", Const.Index, Const.StringVal);
+				else
+					Console.WriteLine("CN {0} := {1}", Const.Index, Const.NumberVal);
+			}
+		}
+
+		void PrintInstructions() {
+			foreach(Instruction Inst in Instructions) {
+				Console.WriteLine("I  {0}  {1}  {2}  {3}", Inst.Code, Inst.A, Inst.B, Inst.C);
+			}
+		}
+
+
+		int GetFreeRegister() {
 			int Result = 0;
-			while(UsedTemps.Contains(Result)) {
+			while(UsedRegs.Contains(Result)) {
 				Result++;
 			}
-			UsedTemps.Add(Result);
+			UsedRegs.Add(Result);
 			return Result;
+		}
+
+		void FreeRegister(int Reg) {
+			UsedRegs.Remove(Reg);
+		}
+
+		int GetConstIndex(string Value) {
+			foreach(ConstEntry Entry in ConstantTable) {
+				if(Entry.StringVal != null && Entry.StringVal == Value) {
+					return Entry.Index;
+				}
+			}
+			ConstEntry NewEntry = new ConstEntry();
+			NewEntry.Index = ConstantTable.Count;
+			NewEntry.StringVal = Value;
+			ConstantTable.Add(NewEntry);
+			return NewEntry.Index;
+		}
+
+		int GetConstIndex(double Value) {
+			foreach(ConstEntry Entry in ConstantTable) {
+				if(Entry.StringVal == null && Entry.NumberVal == Value) 
+					return Entry.Index;
+			}
+			ConstEntry NewEntry = new ConstEntry();
+			NewEntry.Index = ConstantTable.Count;
+			NewEntry.NumberVal = Value;
+			ConstantTable.Add(NewEntry);
+			return NewEntry.Index;
 		}
 
 		void CompileBlock(ParseNode Block) {
@@ -70,7 +154,7 @@ namespace Cheese
 				if(Statement.Type == ParseNode.EType.ASSIGN_STAT)
 					CompileAssignmentStmt(Statement);
 
-				UsedTemps.Clear();
+				UsedRegs.Clear();
 			}
 
 		}
@@ -92,7 +176,7 @@ namespace Cheese
 			Left = Assignment.Children[0];
 			Right = Assignment.Children[2];
 
-
+			// VList LVs = CompileLeftVarList(Left);
 			VList RVs = CompileExpList(Right);
 
 			for(int I = 0; I < Left.Children.Count; I++) {
@@ -101,10 +185,14 @@ namespace Cheese
 
 				string LV = CL.GetTerminal().Value;
 
-				Console.WriteLine("{0} := {1}", LV, RVs[I]);
 
-				// is LV a global, a local, an upvalue, or a tableval
-				Instruction Ins = new Instruction(Instruction.OP.SETGLOBAL, LV, RVs[I]);
+				string Name = LV;
+				int NameIndex = GetConstIndex(Name);
+
+
+				// is LV a global, a local, an upvalue, or a tableval? 
+				Instruction Inst = new Instruction(Instruction.OP.SETGLOBAL, RVs[I].Index, NameIndex);
+				Instructions.Add(Inst);
 			}
 
 		}
@@ -132,12 +220,37 @@ namespace Cheese
 
 			foreach(ParseNode Child in Exp.Children) {
 				if(Child.Type == ParseNode.EType.TERMINAL) {
-					if(Child.Token.Type == Token.EType.KEYWORD ||
-						Child.Token.Type == Token.EType.NUMBER ||
-						Child.Token.Type == Token.EType.STRING) {
-						int T = GetTemp();
-						Result.Add("t" + T);
-						Console.WriteLine("t{0} := {1}", T, Child.Token.Value); 
+					if(Child.Token.Type == Token.EType.KEYWORD) {
+
+					} else if(Child.Token.Type == Token.EType.NUMBER) {
+						double NumValue = 0.0;
+						Double.TryParse(Child.Token.Value, out NumValue);
+
+						int CIndex = GetConstIndex(NumValue);
+						int DReg = GetFreeRegister();
+
+						Instruction LoadK = new Instruction(Instruction.OP.LOADK, DReg, CIndex);
+						Instructions.Add(LoadK);
+
+						Value CValue = new Value();
+						CValue.Loc = Value.ELoc.REGISTER;
+						CValue.Index = DReg;
+						CValue.Side = Value.ESide.RIGHT;
+
+						Result.Add(CValue);
+					} else if(Child.Token.Type == Token.EType.STRING) {
+						int CIndex = GetConstIndex(Child.Token.Value);
+						int DReg = GetFreeRegister();
+
+						Instruction LoadK = new Instruction(Instruction.OP.LOADK, DReg, CIndex);
+						Instructions.Add(LoadK);
+
+						Value CValue = new Value();
+						CValue.Loc = Value.ELoc.REGISTER;
+						CValue.Index = DReg;
+						CValue.Side = Value.ESide.RIGHT;
+
+						Result.Add(CValue);
 					}
 					// '...' ???
 				} else if(Child.Type == ParseNode.EType.BIN_OP_WRAP) {
@@ -155,26 +268,53 @@ namespace Cheese
 
 			ParseNode VarOrExp = PrefixExp.Children[0];
 			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
-				Result.Add(VarOrExp.Children[0].GetTerminal().Value);
+
+
+				string Name = VarOrExp.Children[0].GetTerminal().Value;
+				int NameIndex = GetConstIndex(Name);
+
+				int DestReg = GetFreeRegister();
+				Value RVal = new Value();
+				RVal.Index = DestReg;
+				RVal.Loc = Value.ELoc.REGISTER;
+				RVal.Side = Value.ESide.RIGHT;
+				Result.Add(RVal);
+
+				Instruction Inst = new Instruction(Instruction.OP.GETGLOBAL, DestReg, NameIndex);
+				Instructions.Add(Inst);
 			}
 
 			return Result;
 		}
 
-		string CompileBinOp(ParseNode BinOp) {
+		Value CompileBinOp(ParseNode BinOp) {
 
 			ParseNode Left = BinOp.Children[0];
 			ParseNode Op = BinOp.Children[1];
 			ParseNode Right = BinOp.Children[2];
 
-			int T = GetTemp();
 
 			VList LV = CompileExp(Left);
 			VList RV = CompileExp(Right);
 
-			Console.WriteLine("t{0} := {1} {2} {3}", T, LV[0], Op.Token.Value, RV[0]);
+			//Console.WriteLine("t{0} := {1} {2} {3}", T, LV[0], Op.Token.Value, RV[0]);
 
-			return "t"+T;
+
+			Instruction.OP InstOp = Instruction.OP.ERROR;
+			if(Op.Token.IsOperator("+"))
+				InstOp = Instruction.OP.ADD;
+			else if(Op.Token.IsOperator("-"))
+				InstOp = Instruction.OP.SUB;
+
+			Value Result = new Value();
+			Result.Index = GetFreeRegister();
+			Result.Loc = Value.ELoc.REGISTER;
+			Result.Side = Value.ESide.RIGHT;
+
+			Instruction Inst = new Instruction(InstOp, Result.Index, LV[0].Index, RV[0].Index); 
+			Instructions.Add(Inst);
+
+			return Result;
 		}
 
 	}
