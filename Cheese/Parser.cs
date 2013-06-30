@@ -42,9 +42,11 @@ namespace Cheese
 			WHILE_STAT,
 			REPEAT_STAT,
 			IF_STAT,
-			FOR_STAT,
+			FOR_NUM_STAT,
+			FOR_ITER_STAT,
 			FUNC_STAT,
-			LOCAL_STAT,
+			LOCAL_FUNC_STAT,
+			LOCAL_ASSIGN_STAT,
 			STATEMENT,
 			BLOCK,
 			CHUNK
@@ -381,10 +383,11 @@ namespace Cheese
 		internal ParseNode ParseForStatement() {
 			// 'for' NAME '=' exp ',' exp (',' exp)? 'do' block 'end' | 
 			// 'for' namelist 'in' explist1 'do' block 'end' | 
-			ParseNode For = new ParseNode(ParseNode.EType.FOR_STAT);
-			Match("for", For);
 
 			if(Look.IsOperator("=")) {
+				ParseNode For = new ParseNode(ParseNode.EType.FOR_NUM_STAT);
+				Match("for", For);			
+
 				Match(Token.EType.NAME, For);
 				Match("=", For);
 
@@ -403,8 +406,13 @@ namespace Cheese
 				For.Add(ParseBlock());
 
 				Match("end", For);
+
+				return For;
 			}  // numerical 
 			else if(Look.IsOperator(",") || Look.IsKeyword("in")) {
+				ParseNode For = new ParseNode(ParseNode.EType.FOR_ITER_STAT);
+				Match("for", For);			
+
 				For.Add(ParseNameList());
 
 				Match("in", For);
@@ -416,13 +424,14 @@ namespace Cheese
 				For.Add(ParseBlock());
 
 				Match("end", For);
+
+				return For;
 			} // for .. in 
 			else {
 				throw new ParseException("'=', ',', or 'in'", Look);
 			}
 
-
-			return For;
+			return null;
 		}
 
 		internal ParseNode ParseFunctionStatement() {
@@ -474,27 +483,35 @@ namespace Cheese
 		internal ParseNode ParseLocalStatement() {
 			// 'local' 'function' NAME funcbody | 
 			// 'local' namelist ('=' explist1)? ;
-			ParseNode Local = new ParseNode(ParseNode.EType.LOCAL_STAT);
-			Match("local", Local);
 
 			if(Curr.IsKeyword("function")) {
+				ParseNode Local = new ParseNode(ParseNode.EType.LOCAL_FUNC_STAT);
+				Match("local", Local);
+
 				Match("function", Local);
 				Match(Token.EType.NAME, Local);
 				Local.Add(ParseFuncBody());
+
+				return Local;
 			} // end local func
 			else if(Curr.Type == Token.EType.NAME) {
+				ParseNode Local = new ParseNode(ParseNode.EType.LOCAL_ASSIGN_STAT);
+				Match("local", Local);
+
 				Local.Add(ParseNameList());
 
 				if(Curr.IsOperator("=")) {
 					Match("=", Local);
 					Local.Add(ParseExpList());
 				}
+
+				return Local;
 			} // end local var
 			else {
 				throw new ParseException("'function' or NAME", Curr);
 			}
 
-			return Local;
+			return null;
 		}
 
 		internal ParseNode ParseRepeatStatement() {
