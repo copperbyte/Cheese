@@ -1,0 +1,15 @@
+--Super Simple Test Two
+
+
+function test_func(x) 
+   local y = 2;
+   y = y * x;
+   return y;
+end
+
+x = 1;
+y = 2;
+local z = x + y;
+local w = test_func(x + z);
+
+print(x, y, z, w);
