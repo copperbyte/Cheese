@@ -81,6 +81,12 @@ namespace Cheese
 		internal string StringVal;
 	}
 
+	class LocalEntry {
+		internal int Index;
+		internal string Name;
+
+	}
+
 	class Value {
 		public enum ESide {
 			LEFT,
@@ -110,11 +116,13 @@ namespace Cheese
 
 		internal SortedSet<int> UsedRegs;
 		internal List<ConstEntry> ConstantTable;
+		internal List<LocalEntry> LocalTable;
 		internal List<Instruction> Instructions;
 	
 		public Function() {
 			UsedRegs = new SortedSet<int>();
 			ConstantTable = new List<ConstEntry>();
+			LocalTable = new List<LocalEntry>();
 			Instructions = new List<Instruction>();
 		}
 
@@ -161,6 +169,9 @@ namespace Cheese
 				if(Child.Type == ParseNode.EType.BLOCK)
 					CompileBlock(Child);
 			}
+
+			// all functions, even chunk root, end with a return
+			RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
 
 			Functions.Insert(0, RootFunc);
 			RootFunc.PrintConstants();
@@ -220,11 +231,15 @@ namespace Cheese
 			foreach(ParseNode Statement in Block.Children) {
 				if(Statement.Type == ParseNode.EType.ASSIGN_STAT)
 					CompileAssignmentStmt(Statement);
+				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
+					CompileLocalAssignStmt(Statement);
 
 				CurrFunc.UsedRegs.Clear();
 			}
 
 		}
+
+		// STATEMENTS
 
 
 		void CompileAssignmentStmt(ParseNode Assignment) {
@@ -265,6 +280,65 @@ namespace Cheese
 		}
 
 
+		void CompileLocalAssignStmt(ParseNode LocalAssignment) {
+			if(LocalAssignment.Children.Count != 4)
+				return;
+
+			ParseNode Left, Right;
+			// 'local' = 0
+			Left = LocalAssignment.Children[1];
+			// '=' = 2
+			Right = LocalAssignment.Children[3];
+
+			// VList LVs = CompileLeftVarList(Left); 
+			VList RVs = CompileExpList(Right);
+
+			for(int I = 0; I < Left.Children.Count; I++) {
+				ParseNode CL;
+				CL = Left.Children[I];
+
+				string LV = CL.GetTerminal().Value;
+
+
+				string Name = LV;
+				int NameIndex = GetConstIndex(Name);
+
+
+				// is LV a global, a local, an upvalue, or a tableval? 
+				Instruction Inst = new Instruction(Instruction.OP.MOVE, RVs[I].Index, NameIndex);
+				CurrFunc.Instructions.Add(Inst);
+			}
+		}
+
+		// AST PARTS
+		VList CompileLeftVarList(ParseNode VarList) {
+			// Can Var-list be an R-Value? Maybe. Maybe it would be wrapped in an ExpList if it was?
+			// Anyway, this is meant to be an L-Value. 
+			//  It should tell the assigner which of local, global, table, upval this is, 
+			//   so the statement can pick the right op
+			//  and which index to use.
+			// If discoverying those requires an expression (tablelookups), 
+			//  this will already generate that code
+		
+			VList Result = new VList();
+
+			foreach(ParseNode Child in VarList.Children) {
+				if(Child.Type != ParseNode.EType.VAR)
+					continue;
+
+				Value CurrV = CompileLeftVar(Child);
+				Result.Add(CurrV);
+			}
+
+			return Result;
+		}
+
+		Value CompileLeftVar(ParseNode Var) {
+
+			Value Result = new Value();
+			return Result;
+		}
+
 		VList CompileExpList(ParseNode ExpList) {
 			VList Result = new VList(8);
 
@@ -280,10 +354,16 @@ namespace Cheese
 		}
 
 		VList CompileExp(ParseNode Exp) {
-			VList Result = new VList(2);
 
+			// sometimes CompileExp will be called, but Exp will actually 
+			//  be a node right under an exp, 
+			// FIXME (wrap and call on fake-parent?)
 			if(Exp.Type == ParseNode.EType.PREFIX_EXP)
 				return CompilePrefixExp(Exp);
+			else if(Exp.Type == ParseNode.EType.UN_OP_WRAP) 
+				return new VList() { CompileUnOp(Exp) };
+
+			VList Result = new VList(2);
 
 			foreach(ParseNode Child in Exp.Children) {
 				if(Child.Type == ParseNode.EType.TERMINAL) {
@@ -322,6 +402,8 @@ namespace Cheese
 						Result.Add(new Value(DReg, Value.ELoc.REGISTER, Value.ESide.RIGHT));
 					}
 					// '...' ???
+				} else if(Child.Type == ParseNode.EType.UN_OP_WRAP) {
+					Result.Add(CompileUnOp(Child));
 				} else if(Child.Type == ParseNode.EType.BIN_OP_WRAP) {
 					Result.Add(CompileBinOp(Child));
 				} else if(Child.Type == ParseNode.EType.PREFIX_EXP) {
@@ -382,6 +464,31 @@ namespace Cheese
 			Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 
 			CurrFunc.Instructions.Add(InstOp, Result.Index, LV[0].Index, RV[0].Index);
+
+			return Result;
+		}
+
+		Value CompileUnOp(ParseNode UnOp) {
+
+			ParseNode Op = UnOp.Children[0];
+			ParseNode Right = UnOp.Children[1];
+
+			VList RV = CompileExp(Right);
+
+
+			Instruction.OP InstOp = Instruction.OP.ERROR;
+			if(Op.Token.IsOperator("-"))
+				InstOp = Instruction.OP.UNM;
+			else if(Op.Token.IsKeyword("not"))
+				InstOp = Instruction.OP.NOT;
+			else if(Op.Token.IsOperator("#"))
+				InstOp = Instruction.OP.LEN;
+
+			FreeRegister(RV[0].Index);
+
+			Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
+
+			CurrFunc.Instructions.Add(InstOp, Result.Index, RV[0].Index);
 
 			return Result;
 		}
