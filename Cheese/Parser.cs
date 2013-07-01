@@ -431,7 +431,7 @@ namespace Cheese
 				throw new ParseException("'=', ',', or 'in'", Look);
 			}
 
-			return null;
+			//return null;
 		}
 
 		internal ParseNode ParseFunctionStatement() {
@@ -484,7 +484,7 @@ namespace Cheese
 			// 'local' 'function' NAME funcbody | 
 			// 'local' namelist ('=' explist1)? ;
 
-			if(Curr.IsKeyword("function")) {
+			if(Curr.IsKeyword("local") && Look.IsKeyword("function")) {
 				ParseNode Local = new ParseNode(ParseNode.EType.LOCAL_FUNC_STAT);
 				Match("local", Local);
 
@@ -494,7 +494,7 @@ namespace Cheese
 
 				return Local;
 			} // end local func
-			else if(Curr.Type == Token.EType.NAME) {
+			else if(Curr.IsKeyword("local") && Look.Type == Token.EType.NAME) {
 				ParseNode Local = new ParseNode(ParseNode.EType.LOCAL_ASSIGN_STAT);
 				Match("local", Local);
 
@@ -511,7 +511,7 @@ namespace Cheese
 				throw new ParseException("'function' or NAME", Curr);
 			}
 
-			return null;
+			//return null;
 		}
 
 		internal ParseNode ParseRepeatStatement() {
