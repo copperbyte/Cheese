@@ -307,9 +307,11 @@ namespace Cheese
 				if(RVs.Count > I)
 					RVal = RVs[I];
 
-
 				if(RVal != null)
 					FreeRegister(RVal);
+
+				if(LVal == null || RVal == null)
+					continue;
 
 				// is LV a global, a local, an upvalue, or a tableval? 
 				if(LVal.Loc == Value.ELoc.GLOBAL || LVal.Loc == Value.ELoc.CONSTANT) {
@@ -319,6 +321,8 @@ namespace Cheese
 					if(LVal.Index != RVal.Index)
 						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
 				}
+				// set table
+				// set upval
 			}
 
 		}
@@ -456,10 +460,15 @@ namespace Cheese
 			// sometimes CompileExp will be called, but Exp will actually 
 			//  be a node right under an exp, 
 			// FIXME (wrap and call on fake-parent?)
-			if(Exp.Type == ParseNode.EType.PREFIX_EXP)
-				return CompilePrefixExp(Exp);
-			else if(Exp.Type == ParseNode.EType.UN_OP_WRAP) 
-				return new VList() { CompileUnOp(Exp) };
+			if(Exp.Type != ParseNode.EType.EXP) {
+				ParseNode Temp = new ParseNode(ParseNode.EType.EXP);
+				Temp.Children.Add(Exp);
+				return CompileExp(Temp);
+			}
+			//if(Exp.Type == ParseNode.EType.PREFIX_EXP)
+			//	return CompilePrefixExp(Exp);
+			//else if(Exp.Type == ParseNode.EType.UN_OP_WRAP) 
+			//	return new VList() { CompileUnOp(Exp) };
 
 			VList Result = new VList(2);
 
