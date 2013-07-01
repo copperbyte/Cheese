@@ -152,6 +152,7 @@ namespace Cheese
 
 		Function CurrFunc;
 		List<Function> Functions;
+		Stack<Function> FunctionStack;
 
 		SortedSet<string> Globals;
 
@@ -159,6 +160,7 @@ namespace Cheese
 		public Compiler()
 		{
 			Functions = new List<Function>();
+			FunctionStack = new Stack<Function>();
 			Globals = new SortedSet<string>();
 		}
 
@@ -169,6 +171,9 @@ namespace Cheese
 				return;
 
 			Function RootFunc = new Function();
+
+			// Curr and Stack.Top should be synonymous
+			FunctionStack.Push(RootFunc);
 			CurrFunc = RootFunc;
 
 			foreach(ParseNode Child in RootChunk.Children) {
@@ -180,6 +185,8 @@ namespace Cheese
 			RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
 
 			Functions.Insert(0, RootFunc);
+
+			FunctionStack.Pop();
 
 			foreach(Function Func in Functions) {
 				Func.PrintConstants();
@@ -268,6 +275,8 @@ namespace Cheese
 			foreach(ParseNode Statement in Block.Children) {
 				if(Statement.Type == ParseNode.EType.ASSIGN_STAT)
 					CompileAssignmentStmt(Statement);
+				else if(Statement.Type == ParseNode.EType.FUNC_STAT)
+					CompileFunctionStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
 					CompileLocalAssignStmt(Statement);
 
@@ -376,6 +385,43 @@ namespace Cheese
 						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
 				}
 			}
+		}
+
+
+		void CompileFunctionStmt(ParseNode FuncStatement) {
+			// 'function' funcname funcbody | 
+			// funcname : NAME ('.' NAME)* (':' NAME)? ;
+			// funcbody : '(' (parlist1)? ')' block 'end';';
+		    
+			ParseNode FuncName = FuncStatement.Children[1];
+			ParseNode FuncBody = FuncStatement.Children[2];
+
+			ParseNode ParList = null, FuncBlock = null;
+			if(FuncBody.Children[1].IsTerminal() && FuncBody.Children[1].Token.IsBracket(")")) {
+				ParList = FuncBody.Children[1];
+				FuncBlock = FuncBody.Children[3];
+			} else {
+				ParList = null;
+				FuncBlock = FuncBody.Children[2];
+			}
+
+			if(FuncBlock.IsTerminal() && FuncBlock.Token.IsKeyword("end"))
+				FuncBlock = null;
+
+
+			// Resolve Funcname, 
+
+			// push function..
+			Function NewFunc = new Function();
+			FunctionStack.Push(NewFunc);
+			CurrFunc = NewFunc;
+
+			if(FuncBlock != null)
+				CompileBlock(FuncBlock); 
+
+			Functions.Add(NewFunc);
+			FunctionStack.Pop();  // we are done
+			CurrFunc = FunctionStack.Peek();
 		}
 
 		// AST PARTS
