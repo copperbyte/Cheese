@@ -75,16 +75,14 @@ namespace Cheese
 	}
 
 	class ConstEntry {
-		internal int Index;
-
+		internal Value Value = new Value();
 		internal double NumberVal;
 		internal string StringVal;
 	}
 
 	class LocalEntry {
-		internal int Index;
+		internal Value Value = new Value();
 		internal string Name;
-
 	}
 
 	class Value {
@@ -93,7 +91,7 @@ namespace Cheese
 			RIGHT
 		}
 		public enum ELoc {
-			LOCAL,
+			LOCAL,  // locals are a register, but don't release it 
 			GLOBAL,
 			UPVAL,
 			TABLE,
@@ -129,15 +127,21 @@ namespace Cheese
 		internal void PrintConstants() {
 			foreach(ConstEntry Const in ConstantTable) {
 				if(Const.StringVal != null)
-					Console.WriteLine("CS {0} := {1}", Const.Index, Const.StringVal);
+					Console.WriteLine("CS  {0} := {1}", Const.Value.Index, Const.StringVal);
 				else
-					Console.WriteLine("CN {0} := {1}", Const.Index, Const.NumberVal);
+					Console.WriteLine("CN  {0} := {1}", Const.Value.Index, Const.NumberVal);
+			}
+		}
+
+		internal void PrintLocals() {
+			foreach(LocalEntry Local in LocalTable) {
+				Console.WriteLine("LV  {0} := {1}", Local.Value.Index, Local.Name);
 			}
 		}
 
 		internal void PrintInstructions() {
 			foreach(Instruction Inst in Instructions) {
-				Console.WriteLine("I  {0}  {1}  {2}  {3}", Inst.Code, Inst.A, Inst.B, Inst.C);
+				Console.WriteLine("IC  {0}  {1}  {2}  {3}", Inst.Code, Inst.A, Inst.B, Inst.C);
 			}
 		}
 	}
@@ -149,11 +153,13 @@ namespace Cheese
 		Function CurrFunc;
 		List<Function> Functions;
 
+		SortedSet<string> Globals;
+
 
 		public Compiler()
 		{
 			Functions = new List<Function>();
-
+			Globals = new SortedSet<string>();
 		}
 
 
@@ -174,11 +180,10 @@ namespace Cheese
 			RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
 
 			Functions.Insert(0, RootFunc);
-			RootFunc.PrintConstants();
-			RootFunc.PrintInstructions();
 
 			foreach(Function Func in Functions) {
 				Func.PrintConstants();
+				Func.PrintLocals();
 				Func.PrintInstructions();
 			}
 		}
@@ -195,34 +200,66 @@ namespace Cheese
 			return Result;
 		}
 
-		void FreeRegister(int Reg) {
-			CurrFunc.UsedRegs.Remove(Reg);
+
+		void FreeRegister(Value Reg) {
+			if(Reg.Loc == Value.ELoc.REGISTER)
+				CurrFunc.UsedRegs.Remove(Reg.Index);
 		}
 
-		int GetConstIndex(string Value) {
+		Value GetConstIndex(string ConstValue) {
 			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
-				if(Entry.StringVal != null && Entry.StringVal == Value) {
-					return Entry.Index;
+				if(Entry.StringVal != null && Entry.StringVal == ConstValue) {
+					return Entry.Value;
 				}
 			}
 			ConstEntry NewEntry = new ConstEntry();
-			NewEntry.Index = CurrFunc.ConstantTable.Count;
-			NewEntry.StringVal = Value;
+			NewEntry.Value.Index = CurrFunc.ConstantTable.Count;
+			NewEntry.Value.Loc = Cheese.Value.ELoc.CONSTANT;
+			NewEntry.StringVal = ConstValue;
 			CurrFunc.ConstantTable.Add(NewEntry);
-			return NewEntry.Index;
+			return NewEntry.Value;
 		}
 
-		int GetConstIndex(double Value) {
+		Value GetConstIndex(double ConstValue) {
 			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
-				if(Entry.StringVal == null && Entry.NumberVal == Value) 
-					return Entry.Index;
+				if(Entry.StringVal == null && Entry.NumberVal == ConstValue) 
+					return Entry.Value;
 			}
 			ConstEntry NewEntry = new ConstEntry();
-			NewEntry.Index = CurrFunc.ConstantTable.Count;
-			NewEntry.NumberVal = Value;
+			NewEntry.Value.Index = CurrFunc.ConstantTable.Count;
+			NewEntry.Value.Loc = Cheese.Value.ELoc.CONSTANT;
+			NewEntry.NumberVal = ConstValue;
 			CurrFunc.ConstantTable.Add(NewEntry);
-			return NewEntry.Index;
+			return NewEntry.Value;
 		}
+
+		bool CheckGlobal(string Name) {
+			return Globals.Contains(Name);
+		}
+
+		void AddGlobal(string Name) {
+			Globals.Add(Name);
+		}
+
+		Value GetLocalIndex(string Name, bool Create=true) {
+			foreach(LocalEntry Entry in CurrFunc.LocalTable) {
+				if(Entry.Name != null && Entry.Name == Name) {
+					return Entry.Value;
+				}
+			}
+			if(Create) {
+				int FreeReg = GetFreeRegister();
+				LocalEntry NewEntry = new LocalEntry();
+				NewEntry.Value.Index = FreeReg;//CurrFunc.LocalTable.Count;
+				NewEntry.Value.Loc = Value.ELoc.LOCAL;
+				NewEntry.Name = Name;
+				CurrFunc.LocalTable.Add(NewEntry);
+				return NewEntry.Value;
+			} else {
+				return null;
+			}
+		}
+
 
 		void CompileBlock(ParseNode Block) {
 			if(Block.Children == null)
@@ -234,7 +271,7 @@ namespace Cheese
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
 					CompileLocalAssignStmt(Statement);
 
-				CurrFunc.UsedRegs.Clear();
+				//CurrFunc.UsedRegs.Clear();
 			}
 
 		}
@@ -258,23 +295,30 @@ namespace Cheese
 			Left = Assignment.Children[0];
 			Right = Assignment.Children[2];
 
-			// VList LVs = CompileLeftVarList(Left);
+			VList LVs = CompileLeftVarList(Left);
 			VList RVs = CompileExpList(Right);
 
-			for(int I = 0; I < Left.Children.Count; I++) {
-				ParseNode CL;
-				CL = Left.Children[I];
+			int MaxCount = Math.Max(LVs.Count, RVs.Count);
+			for(int I = 0; I < MaxCount; I++) {
+				Value LVal=null, RVal=null;
 
-				string LV = CL.GetTerminal().Value;
+				if(LVs.Count > I)
+					LVal = LVs[I];
+				if(RVs.Count > I)
+					RVal = RVs[I];
 
 
-				string Name = LV;
-				int NameIndex = GetConstIndex(Name);
-
+				if(RVal != null)
+					FreeRegister(RVal);
 
 				// is LV a global, a local, an upvalue, or a tableval? 
-				Instruction Inst = new Instruction(Instruction.OP.SETGLOBAL, RVs[I].Index, NameIndex);
-				CurrFunc.Instructions.Add(Inst);
+				if(LVal.Loc == Value.ELoc.GLOBAL || LVal.Loc == Value.ELoc.CONSTANT) {
+					CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, RVal.Index, LVal.Index);
+				}
+				else if(LVal.Loc == Value.ELoc.LOCAL || LVal.Loc == Value.ELoc.REGISTER) {
+					if(LVal.Index != RVal.Index)
+						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
+				}
 			}
 
 		}
@@ -290,23 +334,43 @@ namespace Cheese
 			// '=' = 2
 			Right = LocalAssignment.Children[3];
 
-			// VList LVs = CompileLeftVarList(Left); 
+			// Left is a NAME_LIST for local, not a VAR_LIST
+			// this is essentially CompileNameList right here
+			VList LVs = new VList((Left.Children.Count / 2) + 1);
+			foreach(ParseNode Name in Left.Children) {
+				if(Name.Type == ParseNode.EType.TERMINAL && 
+				   Name.Token.IsOperator(",")) {
+					continue;
+				}
+				else if(Name.Type == ParseNode.EType.TERMINAL && 
+				        Name.Token.Type == Token.EType.NAME) {
+					string NameVal = Name.Token.Value;
+					Value LVal = GetLocalIndex(NameVal);
+					//Value LVal = new Value(LReg, Value.ELoc.LOCAL, Value.ESide.LEFT);
+					LVs.Add(LVal);
+				}
+			}
+
 			VList RVs = CompileExpList(Right);
 
-			for(int I = 0; I < Left.Children.Count; I++) {
-				ParseNode CL;
-				CL = Left.Children[I];
+			int MaxCount = Math.Max(LVs.Count, RVs.Count);
+			for(int I = 0; I < MaxCount; I++) {
+				Value LVal=null, RVal=null;
 
-				string LV = CL.GetTerminal().Value;
+				if(LVs.Count > I)
+					LVal = LVs[I];
+				if(RVs.Count > I)
+					RVal = RVs[I];
 
+				if(RVal != null)
+					FreeRegister(RVal);
 
-				string Name = LV;
-				int NameIndex = GetConstIndex(Name);
-
-
-				// is LV a global, a local, an upvalue, or a tableval? 
-				Instruction Inst = new Instruction(Instruction.OP.MOVE, RVs[I].Index, NameIndex);
-				CurrFunc.Instructions.Add(Inst);
+				// is LV a local 
+				if(LVal != null && RVal != null) {
+					// Skip self-move~
+					if(LVal.Index != RVal.Index)
+						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
+				}
 			}
 		}
 
@@ -336,6 +400,40 @@ namespace Cheese
 		Value CompileLeftVar(ParseNode Var) {
 
 			Value Result = new Value();
+
+			Value First = null;
+
+			if(Var.Children[0].Type == ParseNode.EType.TERMINAL &&
+				Var.Children[0].Token.Type == Token.EType.NAME) {
+				string Name = Var.Children[0].Token.Value;
+				Value LocalV = GetLocalIndex(Name, false);
+				if(LocalV != null) {
+					First = LocalV;
+				} else {
+					bool IsGlobal = CheckGlobal(Name);
+					Value GlobalV = null;
+					if(IsGlobal) {
+						GlobalV = GetConstIndex(Name);
+					} else {
+						AddGlobal(Name);
+						GlobalV = GetConstIndex(Name);
+					}
+					if(GlobalV != null)
+						First = GlobalV;
+				} 
+			}
+
+			else if(Var.Children[0].Type == ParseNode.EType.TERMINAL &&
+			   Var.Children[0].Token.IsBracket("(")) {
+				VList ExpVs = CompileExp(Var.Children[1]);
+				First = ExpVs[0];
+				ParseNode VarSuffix = Var.Children[3];
+				// Suffix stuff
+			}
+
+
+			// More Suffix Stuff
+			Result = First;
 			return Result;
 		}
 
@@ -387,17 +485,17 @@ namespace Cheese
 						double NumValue = 0.0;
 						Double.TryParse(Child.Token.Value, out NumValue);
 
-						int CIndex = GetConstIndex(NumValue);
+						Value CVal = GetConstIndex(NumValue);
 						int DReg = GetFreeRegister();
 
-						CurrFunc.Instructions.Add(Instruction.OP.LOADK, DReg, CIndex);
+						CurrFunc.Instructions.Add(Instruction.OP.LOADK, DReg, CVal.Index);
 
 						Result.Add(new Value(DReg, Value.ELoc.REGISTER, Value.ESide.RIGHT));
 					} else if(Child.Token.Type == Token.EType.STRING) {
-						int CIndex = GetConstIndex(Child.Token.Value);
+						Value CVal = GetConstIndex(Child.Token.Value);
 						int DReg = GetFreeRegister();
 
-						CurrFunc.Instructions.Add(Instruction.OP.LOADK, DReg, CIndex);
+						CurrFunc.Instructions.Add(Instruction.OP.LOADK, DReg, CVal.Index);
 
 						Result.Add(new Value(DReg, Value.ELoc.REGISTER, Value.ESide.RIGHT));
 					}
@@ -421,13 +519,13 @@ namespace Cheese
 			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
 
 				string Name = VarOrExp.Children[0].GetTerminal().Value; // FIXME complicated names
-				int NameIndex = GetConstIndex(Name);
+				Value CVal = GetConstIndex(Name);
 
 				int DestReg = GetFreeRegister();
 
 				Result.Add(new Value(DestReg, Value.ELoc.REGISTER, Value.ESide.RIGHT));
 
-				CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, DestReg, NameIndex);
+				CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, DestReg, CVal.Index);
 			}
 
 			return Result;
@@ -458,8 +556,8 @@ namespace Cheese
 			else if(Op.Token.IsOperator("%"))
 				InstOp = Instruction.OP.MOD;
 
-			FreeRegister(LV[0].Index);
-			FreeRegister(RV[0].Index);
+			FreeRegister(LV[0]);
+			FreeRegister(RV[0]);
 
 			Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 
@@ -484,7 +582,7 @@ namespace Cheese
 			else if(Op.Token.IsOperator("#"))
 				InstOp = Instruction.OP.LEN;
 
-			FreeRegister(RV[0].Index);
+			FreeRegister(RV[0]);
 
 			Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 
