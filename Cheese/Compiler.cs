@@ -397,7 +397,7 @@ namespace Cheese
 			ParseNode FuncBody = FuncStatement.Children[2];
 
 			ParseNode ParList = null, FuncBlock = null;
-			if(FuncBody.Children[1].IsTerminal() && FuncBody.Children[1].Token.IsBracket(")")) {
+			if(FuncBody.Children[1].Type == ParseNode.EType.PAR_LIST) {
 				ParList = FuncBody.Children[1];
 				FuncBlock = FuncBody.Children[3];
 			} else {
@@ -410,18 +410,35 @@ namespace Cheese
 
 
 			// Resolve Funcname, 
+			// get it into globals
+			string FuncNameStr;
+			FuncNameStr = FuncName.Children[0].Token.Value;
 
 			// push function..
 			Function NewFunc = new Function();
 			FunctionStack.Push(NewFunc);
 			CurrFunc = NewFunc;
 
+			// Parse ParList, List of Args/Locals?
+			// Do it after CurrFunc shift
+			// VList ParValues = CompileParList(ParList);
+
 			if(FuncBlock != null)
 				CompileBlock(FuncBlock); 
+
+			CurrFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1); // default return
 
 			Functions.Add(NewFunc);
 			FunctionStack.Pop();  // we are done
 			CurrFunc = FunctionStack.Peek();
+
+			Value GVal = GetConstIndex(FuncNameStr);
+			Value ClosureReg = new Value(GetFreeRegister());
+			int UpValCount = 0;
+			CurrFunc.Instructions.Add(Instruction.OP.CLOSURE, ClosureReg.Index, UpValCount);
+			CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, ClosureReg.Index, GVal.Index);
+			FreeRegister(GVal);
+			FreeRegister(ClosureReg);
 		}
 
 		// AST PARTS
@@ -508,7 +525,7 @@ namespace Cheese
 			// FIXME (wrap and call on fake-parent?)
 			if(Exp.Type != ParseNode.EType.EXP) {
 				ParseNode Temp = new ParseNode(ParseNode.EType.EXP);
-				Temp.Children.Add(Exp);
+				Temp.Add(Exp);
 				return CompileExp(Temp);
 			}
 			//if(Exp.Type == ParseNode.EType.PREFIX_EXP)
@@ -574,13 +591,25 @@ namespace Cheese
 			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
 
 				string Name = VarOrExp.Children[0].GetTerminal().Value; // FIXME complicated names
-				Value CVal = GetConstIndex(Name);
+				Value VarVal = null;
+				{{
+					Value LocalV = GetLocalIndex(Name, false);
+					if(LocalV != null) {
+						VarVal = LocalV;
+					} else {
+						bool IsGlobal = CheckGlobal(Name);
+						Value GlobalV = GetConstIndex(Name);
+						VarVal = GlobalV;
+					}
+				}}
 
-				int DestReg = GetFreeRegister();
-
-				Result.Add(new Value(DestReg, Value.ELoc.REGISTER, Value.ESide.RIGHT));
-
-				CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, DestReg, CVal.Index);
+				if(VarVal.Loc == Value.ELoc.REGISTER || VarVal.Loc == Value.ELoc.LOCAL) {
+					Result.Add(VarVal);
+				} else {
+					int DestReg = GetFreeRegister();
+					Result.Add(new Value(DestReg, Value.ELoc.REGISTER, Value.ESide.RIGHT));
+					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, DestReg, VarVal.Index);
+				}
 			}
 
 			return Result;
