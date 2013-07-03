@@ -35,7 +35,7 @@ namespace Cheese
 			VAR_LIST,
 			FUNC_NAME,
 			ASSIGN_STAT,
-			LAST_STAT,
+			//LAST_STAT,
 			BREAK_STAT, 
 			RETURN_STAT,
 			DO_STAT,
@@ -362,7 +362,7 @@ namespace Cheese
 		}
 
 		internal ParseNode ParseBreakStatement() {
-			ParseNode Node = new ParseNode(ParseNode.EType.LAST_STAT);
+			ParseNode Node = new ParseNode(ParseNode.EType.BREAK_STAT);
 			Match("break", Node);
 			return Node;
 		}
@@ -531,7 +531,7 @@ namespace Cheese
 		}
 
 		internal ParseNode ParseReturnStatement() {
-			ParseNode Return = new ParseNode(ParseNode.EType.LAST_STAT);
+			ParseNode Return = new ParseNode(ParseNode.EType.RETURN_STAT);
 			Match("return", Return);
 
 			ParseNode Body = ParseExpList();

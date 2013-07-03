@@ -189,6 +189,7 @@ namespace Cheese
 			FunctionStack.Pop();
 
 			foreach(Function Func in Functions) {
+				Console.WriteLine("Function:  ");
 				Func.PrintConstants();
 				Func.PrintLocals();
 				Func.PrintInstructions();
@@ -279,7 +280,8 @@ namespace Cheese
 					CompileFunctionStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
 					CompileLocalAssignStmt(Statement);
-
+				else if(Statement.Type == ParseNode.EType.RETURN_STAT) 
+					CompileReturnStmt(Statement);
 				//CurrFunc.UsedRegs.Clear();
 			}
 
@@ -348,21 +350,7 @@ namespace Cheese
 			Right = LocalAssignment.Children[3];
 
 			// Left is a NAME_LIST for local, not a VAR_LIST
-			// this is essentially CompileNameList right here
-			VList LVs = new VList((Left.Children.Count / 2) + 1);
-			foreach(ParseNode Name in Left.Children) {
-				if(Name.Type == ParseNode.EType.TERMINAL && 
-				   Name.Token.IsOperator(",")) {
-					continue;
-				}
-				else if(Name.Type == ParseNode.EType.TERMINAL && 
-				        Name.Token.Type == Token.EType.NAME) {
-					string NameVal = Name.Token.Value;
-					Value LVal = GetLocalIndex(NameVal);
-					//Value LVal = new Value(LReg, Value.ELoc.LOCAL, Value.ESide.LEFT);
-					LVs.Add(LVal);
-				}
-			}
+			VList LVs = CompileNameList(Left);
 
 			VList RVs = CompileExpList(Right);
 
@@ -421,7 +409,11 @@ namespace Cheese
 
 			// Parse ParList, List of Args/Locals?
 			// Do it after CurrFunc shift
+			// FIXME: '...'
 			// VList ParValues = CompileParList(ParList);
+			VList ParValues;
+			if(ParList != null)
+				ParValues = CompileNameList(ParList.Children[0]);
 
 			if(FuncBlock != null)
 				CompileBlock(FuncBlock); 
@@ -439,6 +431,23 @@ namespace Cheese
 			CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, ClosureReg.Index, GVal.Index);
 			FreeRegister(GVal);
 			FreeRegister(ClosureReg);
+		}
+
+
+		void CompileReturnStmt(ParseNode ReturnStatement) {
+			// 'return' (explist1)?
+			ParseNode ExpList = ReturnStatement.Children[1];
+			VList RetVs = CompileExpList(ExpList);
+
+			int A = 0, B = 1;
+			if(RetVs != null) {
+				if(RetVs.Count > 0) {
+					A = RetVs[0].Index;
+					B = RetVs.Count + 1;
+				}
+			}
+
+			CurrFunc.Instructions.Add(Instruction.OP.RETURN, A, B);
 		}
 
 		// AST PARTS
@@ -504,7 +513,28 @@ namespace Cheese
 			return Result;
 		}
 
+		VList CompileNameList(ParseNode NameList) {
+			VList LVs = new VList();
+			foreach(ParseNode Name in NameList.Children) {
+				if(Name.Type == ParseNode.EType.TERMINAL && 
+				   Name.Token.IsOperator(",")) {
+					continue;
+				}
+				else if(Name.Type == ParseNode.EType.TERMINAL && 
+				        Name.Token.Type == Token.EType.NAME) {
+					string NameVal = Name.Token.Value;
+					Value LVal = GetLocalIndex(NameVal);
+					//Value LVal = new Value(LReg, Value.ELoc.LOCAL, Value.ESide.LEFT);
+					LVs.Add(LVal);
+				}
+			}
+			return LVs;
+		}
+
 		VList CompileExpList(ParseNode ExpList) {
+			if(ExpList.Children == null)
+				return null;
+
 			VList Result = new VList(8);
 
 			foreach(ParseNode Child in ExpList.Children) {
