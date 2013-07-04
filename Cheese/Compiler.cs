@@ -694,6 +694,11 @@ namespace Cheese
 				VList ArgVs = CompileArgs(Args);
 
 				// Set up the call?
+				Value FuncVal = Result[Result.Count - 1];
+				Result.RemoveAt(Result.Count - 1);
+
+				int RetCount = 0; // FIXME How do I know this? Count LVals? That isn't a parameter!!
+				CurrFunc.Instructions.Add(Instruction.OP.CALL, FuncVal.Index, ArgVs.Count+1, RetCount+1);
 			}
 
 			return Result;
@@ -709,10 +714,10 @@ namespace Cheese
 					Result = CompileExpList(Args.Children[1]);
 				}
 			} else if(Args.Children[0].Type == ParseNode.EType.TABLE_CONS) {
-				;
+				; // FIXME
 			} else if(Args.Children[0].Type == ParseNode.EType.TERMINAL &&
 				Args.Children[0].Token.Type == Token.EType.STRING) {
-				;
+				; // FIXME
 			}
 
 			return Result;
