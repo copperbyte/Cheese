@@ -112,16 +112,38 @@ namespace Cheese
 
 	class Function {
 
+
+		internal int NumParams;
+		internal bool IsVarArg;
+		internal int MaxStackSize;
+
 		internal SortedSet<int> UsedRegs;
 		internal List<ConstEntry> ConstantTable;
 		internal List<LocalEntry> LocalTable;
 		internal List<Instruction> Instructions;
 	
 		public Function() {
+			NumParams = 0;
+			IsVarArg = false;
+			MaxStackSize = 0;
+
 			UsedRegs = new SortedSet<int>();
 			ConstantTable = new List<ConstEntry>();
 			LocalTable = new List<LocalEntry>();
 			Instructions = new List<Instruction>();
+		}
+
+		internal void Print() {
+			PrintHeader();
+			PrintConstants();
+			PrintLocals();
+			PrintInstructions();
+		}
+
+		internal void PrintHeader() {
+			Console.WriteLine("NumParams: {0}", NumParams);
+			Console.WriteLine("IsVarArg: {0}", IsVarArg);
+			Console.WriteLine("MaxStackSize: {0}", MaxStackSize);
 		}
 
 		internal void PrintConstants() {
@@ -190,9 +212,7 @@ namespace Cheese
 
 			foreach(Function Func in Functions) {
 				Console.WriteLine("Function:  ");
-				Func.PrintConstants();
-				Func.PrintLocals();
-				Func.PrintInstructions();
+				Func.Print();
 			}
 		}
 
@@ -205,6 +225,7 @@ namespace Cheese
 				Result++;
 			}
 			CurrFunc.UsedRegs.Add(Result);
+			CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, Result+1);
 			return Result;
 		}
 
@@ -288,7 +309,6 @@ namespace Cheese
 		}
 
 		// STATEMENTS
-
 
 		void CompileAssignmentStmt(ParseNode Assignment) {
 			if(Assignment.Children.Count != 3)
@@ -412,8 +432,10 @@ namespace Cheese
 			// FIXME: '...'
 			// VList ParValues = CompileParList(ParList);
 			VList ParValues;
-			if(ParList != null)
+			if(ParList != null) {
 				ParValues = CompileNameList(ParList.Children[0]);
+				CurrFunc.NumParams = ParValues.Count;
+			}
 
 			if(FuncBlock != null)
 				CompileBlock(FuncBlock); 
@@ -449,6 +471,8 @@ namespace Cheese
 
 			CurrFunc.Instructions.Add(Instruction.OP.RETURN, A, B);
 		}
+
+
 
 		// AST PARTS
 		VList CompileLeftVarList(ParseNode VarList) {
@@ -615,23 +639,26 @@ namespace Cheese
 		}
 
 		VList CompilePrefixExp(ParseNode PrefixExp) {
+			// prefixexp: varOrExp nameAndArgs*;
 			VList Result = new VList();
 
+			// varOrExp: var | '(' exp ')';
 			ParseNode VarOrExp = PrefixExp.Children[0];
 			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
 
 				string Name = VarOrExp.Children[0].GetTerminal().Value; // FIXME complicated names
 				Value VarVal = null;
-				{{
-					Value LocalV = GetLocalIndex(Name, false);
-					if(LocalV != null) {
-						VarVal = LocalV;
-					} else {
-						bool IsGlobal = CheckGlobal(Name);
-						Value GlobalV = GetConstIndex(Name);
-						VarVal = GlobalV;
-					}
-				}}
+				{
+					{
+						Value LocalV = GetLocalIndex(Name, false);
+						if(LocalV != null) {
+							VarVal = LocalV;
+						} else {
+							bool IsGlobal = CheckGlobal(Name);
+							Value GlobalV = GetConstIndex(Name);
+							VarVal = GlobalV;
+						}
+					}}
 
 				if(VarVal.Loc == Value.ELoc.REGISTER || VarVal.Loc == Value.ELoc.LOCAL) {
 					Result.Add(VarVal);
@@ -640,6 +667,52 @@ namespace Cheese
 					Result.Add(new Value(DestReg, Value.ELoc.REGISTER, Value.ESide.RIGHT));
 					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, DestReg, VarVal.Index);
 				}
+			} else { // assume ( exp )
+				ParseNode Exp = VarOrExp.Children[1];
+				Result = CompileExp(Exp);
+			}
+
+			// nameAndArgs: (':' NAME)? args;
+			foreach(ParseNode NameAndArgs in PrefixExp.Children) {
+				if(NameAndArgs.Type != ParseNode.EType.NAME_AND_ARGS)
+					continue;
+
+				// Turns out the first thing was a function to call. Once params
+				// are resolved, call it the func in Result[0], and then pop it
+			
+				ParseNode ClassFuncName = null;
+				ParseNode Args = null;
+
+				if(NameAndArgs.Children[0].Type == ParseNode.EType.TERMINAL &&
+					NameAndArgs.Children[0].Token.IsOperator(":")) {
+					ClassFuncName = NameAndArgs.Children[1];
+					Args = NameAndArgs.Children[2];
+				} else {
+					Args = NameAndArgs.Children[0];
+				}
+
+				VList ArgVs = CompileArgs(Args);
+
+				// Set up the call?
+			}
+
+			return Result;
+		}
+
+		VList CompileArgs(ParseNode Args) {
+			// args :  '(' (explist1)? ')' | tableconstructor | string ;
+			VList Result = null;
+
+			if (Args.Children[0].Type == ParseNode.EType.TERMINAL &&
+				Args.Children[0].Token.IsBracket("(")) {
+				if(Args.Children[1].Type == ParseNode.EType.EXP_LIST) {
+					Result = CompileExpList(Args.Children[1]);
+				}
+			} else if(Args.Children[0].Type == ParseNode.EType.TABLE_CONS) {
+				;
+			} else if(Args.Children[0].Type == ParseNode.EType.TERMINAL &&
+				Args.Children[0].Token.Type == Token.EType.STRING) {
+				;
 			}
 
 			return Result;
