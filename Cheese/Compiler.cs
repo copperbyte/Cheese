@@ -102,11 +102,13 @@ namespace Cheese
 		internal ESide Side;
 		internal ELoc Loc;
 		internal int Index;
+		internal bool Consecutive;
 
 		public Value(int Index=0, ELoc Loc=ELoc.REGISTER, ESide Side=ESide.RIGHT) {
 			this.Index = Index; 
 			this.Loc = Loc;
 			this.Side = Side;
+			this.Consecutive = false;
 		}
 
 		public override string ToString()
@@ -268,6 +270,7 @@ namespace Cheese
 				CurrFunc.UsedRegs.Add(CR);
 				CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, CR+1);
 				Result.Add(new Value(CR, Value.ELoc.REGISTER, Value.ESide.RIGHT));
+				Result[Result.Count - 1].Consecutive = true;
 			}
 			return Result;
 		}
@@ -326,8 +329,7 @@ namespace Cheese
 			}
 		}
 
-
-		Value GetLRegorTReg(VList LVals = null, VList RVals = null) {
+		Value GetLReg(VList LVals = null, VList RVals = null) {
 			Value Result = null;
 			if(LVals != null && RVals != null && LVals.Count > RVals.Count) {
 				if (LVals[RVals.Count].Loc == Value.ELoc.REGISTER ||
@@ -335,6 +337,12 @@ namespace Cheese
 					Result = LVals[RVals.Count];
 				}
 			}
+			return Result;
+		}
+
+		Value GetLRegorTReg(VList LVals = null, VList RVals = null) {
+			Value Result = null;
+			Result = GetLReg(LVals, RVals);
 			if(Result == null)
 				Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 			return Result;
@@ -702,23 +710,31 @@ namespace Cheese
 
 				string Name = VarOrExp.Children[0].GetTerminal().Value; // FIXME complicated names
 				Value VarVal = null;
-				{
-					{
-						Value LocalV = GetLocalIndex(Name, false);
-						if(LocalV != null) {
-							VarVal = LocalV;
-						} else {
-							bool IsGlobal = CheckGlobal(Name);
-							Value GlobalV = GetConstIndex(Name);
-							VarVal = GlobalV;
-						}
-					}}
+				{{
+					Value LocalV = GetLocalIndex(Name, false);
+					if(LocalV != null) {
+						VarVal = LocalV;
+					} else {
+						bool IsGlobal = CheckGlobal(Name);
+						Value GlobalV = GetConstIndex(Name);
+						VarVal = GlobalV;
+					}
+				}}
 
-				if(VarVal.Loc == Value.ELoc.REGISTER || VarVal.Loc == Value.ELoc.LOCAL) {
-					Result.Add(VarVal);
+				Value LReg = GetLReg(LVals, RVals);
+
+				if((VarVal.Loc == Value.ELoc.REGISTER || VarVal.Loc == Value.ELoc.LOCAL)) {
+					if( (LReg != null && LReg.Index != VarVal.Index && LReg.Consecutive) ) {
+						Result.Add(LReg);
+						FreeRegister(VarVal);
+						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LReg.Index, VarVal.Index);
+					} else {
+						Result.Add(VarVal);
+					}
 				} else {
 					Value Dest = GetLRegorTReg(LVals, RVals);
 					Result.Add(Dest);
+					FreeRegister(VarVal);
 					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, Dest.Index, VarVal.Index);
 				}
 			} else { // assume ( exp ) 
