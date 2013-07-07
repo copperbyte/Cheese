@@ -317,9 +317,9 @@ namespace Cheese
 				}
 			}
 			if(Create) {
-				int FreeReg = GetFreeRegister();
+				//int FreeReg = GetFreeRegister();
 				LocalEntry NewEntry = new LocalEntry();
-				NewEntry.Value.Index = FreeReg;//CurrFunc.LocalTable.Count;
+				NewEntry.Value.Index = CurrFunc.LocalTable.Count;
 				NewEntry.Value.Loc = Value.ELoc.LOCAL;
 				NewEntry.Name = Name;
 				CurrFunc.LocalTable.Add(NewEntry);
@@ -327,6 +327,10 @@ namespace Cheese
 			} else {
 				return null;
 			}
+		}
+
+		void FinalizeLocal(Value Local) {
+			CurrFunc.UsedRegs.Add(Local.Index);
 		}
 
 		Value GetLReg(VList LVals = null, VList RVals = null) {
@@ -446,6 +450,9 @@ namespace Cheese
 
 				if(RVal != null)
 					FreeRegister(RVal);
+
+				if(LVal != null)
+					FinalizeLocal(LVal);
 
 				// is LV a local 
 				if(LVal != null && RVal != null) {
@@ -704,43 +711,15 @@ namespace Cheese
 			// prefixexp: varOrExp nameAndArgs*;
 			VList Result = new VList();
 
-			// varOrExp: var | '(' exp ')';
+
 			ParseNode VarOrExp = PrefixExp.Children[0];
-			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
-
-				string Name = VarOrExp.Children[0].GetTerminal().Value; // FIXME complicated names
-				Value VarVal = null;
-				{{
-					Value LocalV = GetLocalIndex(Name, false);
-					if(LocalV != null) {
-						VarVal = LocalV;
-					} else {
-						bool IsGlobal = CheckGlobal(Name);
-						Value GlobalV = GetConstIndex(Name);
-						VarVal = GlobalV;
-					}
-				}}
-
-				Value LReg = GetLReg(LVals, RVals);
-
-				if((VarVal.Loc == Value.ELoc.REGISTER || VarVal.Loc == Value.ELoc.LOCAL)) {
-					if( (LReg != null && LReg.Index != VarVal.Index && LReg.Consecutive) ) {
-						Result.Add(LReg);
-						FreeRegister(VarVal);
-						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LReg.Index, VarVal.Index);
-					} else {
-						Result.Add(VarVal);
-					}
-				} else {
-					Value Dest = GetLRegorTReg(LVals, RVals);
-					Result.Add(Dest);
-					FreeRegister(VarVal);
-					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, Dest.Index, VarVal.Index);
-				}
-			} else { // assume ( exp ) 
-				ParseNode Exp = VarOrExp.Children[1];
-				Result = CompileExp(Exp);
+			if(PrefixExp.Children.Count == 1) // not a func call
+				return CompileVarOrExp(VarOrExp, LVals, RVals);
+			else {
+				Result = CompileVarOrExp(VarOrExp);
 			}
+
+
 
 			// nameAndArgs: (':' NAME)? args;
 			foreach(ParseNode NameAndArgs in PrefixExp.Children) {
@@ -807,6 +786,50 @@ namespace Cheese
 					Result.Add(StackSpace[i]);
 				for(int i = RetCount; i < StackSpace.Count; i++)
 					FreeRegister(StackSpace[i]);
+			}
+
+			return Result;
+		}
+
+		VList CompileVarOrExp(ParseNode VarOrExp, VList LVals=null, VList RVals=null) {
+			// varOrExp: var | '(' exp ')';
+
+			VList Result = new VList();
+
+			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
+
+				string Name = VarOrExp.Children[0].GetTerminal().Value; // FIXME complicated names
+				Value VarVal = null;
+				{{
+						Value LocalV = GetLocalIndex(Name, false);
+						if(LocalV != null) {
+							VarVal = LocalV;
+						} else {
+							bool IsGlobal = CheckGlobal(Name);
+							Value GlobalV = GetConstIndex(Name);
+							VarVal = GlobalV;
+						}
+					}}
+
+				Value LReg = GetLReg(LVals, RVals);
+
+				if((VarVal.Loc == Value.ELoc.REGISTER || VarVal.Loc == Value.ELoc.LOCAL)) {
+					if( (LReg != null && LReg.Index != VarVal.Index && LReg.Consecutive) ) {
+						Result.Add(LReg);
+						FreeRegister(VarVal);
+						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LReg.Index, VarVal.Index);
+					} else {
+						Result.Add(VarVal);
+					}
+				} else {
+					Value Dest = GetLRegorTReg(LVals, RVals);
+					Result.Add(Dest);
+					FreeRegister(VarVal);
+					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, Dest.Index, VarVal.Index);
+				}
+			} else { // assume ( exp ) 
+				ParseNode Exp = VarOrExp.Children[1];
+				Result = CompileExp(Exp);
 			}
 
 			return Result;
