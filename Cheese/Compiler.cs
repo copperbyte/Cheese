@@ -266,6 +266,7 @@ namespace Cheese
 			for(int I = 0; I < Count; I++) {
 				int CR = First+I;
 				CurrFunc.UsedRegs.Add(CR);
+				CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, CR+1);
 				Result.Add(new Value(CR, Value.ELoc.REGISTER, Value.ESide.RIGHT));
 			}
 			return Result;
@@ -347,6 +348,8 @@ namespace Cheese
 			foreach(ParseNode Statement in Block.Children) {
 				if(Statement.Type == ParseNode.EType.ASSIGN_STAT)
 					CompileAssignmentStmt(Statement);
+				else if(Statement.Type == ParseNode.EType.FUNC_CALL)
+					CompileFunctionCallStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.FUNC_STAT)
 					CompileFunctionStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
@@ -503,6 +506,12 @@ namespace Cheese
 			CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, ClosureReg.Index, GVal.Index);
 			FreeRegister(GVal);
 			FreeRegister(ClosureReg);
+		}
+
+
+		void CompileFunctionCallStmt(ParseNode CallStmt) {
+			// functioncall: varOrExp nameAndArgs+;
+			CompilePrefixExp(CallStmt);
 		}
 
 
@@ -683,7 +692,7 @@ namespace Cheese
 			return Result;
 		}
 
-		VList CompilePrefixExp(ParseNode PrefixExp, VList LVals, VList RVals) {
+		VList CompilePrefixExp(ParseNode PrefixExp, VList LVals=null, VList RVals=null) {
 			// prefixexp: varOrExp nameAndArgs*;
 			VList Result = new VList();
 
@@ -780,6 +789,8 @@ namespace Cheese
 				// Add return regs to Result?
 				for(int i = 0; i < RetCount; i++)
 					Result.Add(StackSpace[i]);
+				for(int i = RetCount; i < StackSpace.Count; i++)
+					FreeRegister(StackSpace[i]);
 			}
 
 			return Result;
