@@ -65,6 +65,7 @@ namespace Cheese
 		internal OP Code;
 		internal int A, B, C;
 		internal bool isA = false, isB=false, isC=false;
+		internal bool rkB = false, rkC = false;
 
 		public Instruction() { ; }
 		public Instruction(OP code) { Code = code; }
@@ -103,17 +104,22 @@ namespace Cheese
 		internal ELoc Loc;
 		internal int Index;
 		internal bool Consecutive;
+		internal Value Key;
 
-		public Value(int Index=0, ELoc Loc=ELoc.REGISTER, ESide Side=ESide.RIGHT) {
+		public Value(int Index=0, ELoc Loc=ELoc.REGISTER, ESide Side=ESide.RIGHT, Value Key=null) {
 			this.Index = Index; 
 			this.Loc = Loc;
 			this.Side = Side;
 			this.Consecutive = false;
+			this.Key = null;
 		}
 
 		public override string ToString()
 		{
-			return Side + ":" + Loc + ":" + Index.ToString();
+			string Ret = Side + ":" + Loc + ":" + (Consecutive?"C":"") + Index.ToString();
+			if(Key != null)
+				Ret += "[" + Key.ToString() + "]";
+			return Ret;
 		}
 	}
 
@@ -187,14 +193,14 @@ namespace Cheese
 		List<Function> Functions;
 		Stack<Function> FunctionStack;
 
-		SortedSet<string> Globals;
+		List<Value> Globals;
 
 
 		public Compiler()
 		{
 			Functions = new List<Function>();
 			FunctionStack = new Stack<Function>();
-			Globals = new SortedSet<string>();
+			Globals = new List<Value>();
 		}
 
 
@@ -246,6 +252,9 @@ namespace Cheese
 				CurrFunc.UsedRegs.Remove(Reg.Index);
 		}
 
+		void FreeRegister(int Reg) {
+			CurrFunc.UsedRegs.Remove(Reg);
+		}
 
 		bool IsConsecutiveRegisterFree(int First, int Count) {
 			for(int I = 0; I < Count; I++) {
@@ -257,6 +266,7 @@ namespace Cheese
 		}
 
 		// First is first tried, not promised first
+		// Actually register them as used? Or do like 'local'?
 		VList GetConsecutiveRegisters(int First, int Count) {
 			while(true) {
 				if(IsConsecutiveRegisterFree(First, Count)) {
@@ -303,12 +313,30 @@ namespace Cheese
 		}
 
 		bool CheckGlobal(string Name) {
-			return Globals.Contains(Name);
+			foreach(Value Iter in Globals) {
+				if (Iter.Index < CurrFunc.ConstantTable.Count &&
+					Name == CurrFunc.ConstantTable[Iter.Index].StringVal) {
+					return true;
+				}
+			}
+			return false;
 		}
 
-		void AddGlobal(string Name) {
-			Globals.Add(Name);
+		Value GetGlobalIndex(string GlobalName) {
+			foreach(Value Iter in Globals) {
+				if (Iter.Index < CurrFunc.ConstantTable.Count &&
+				    GlobalName == CurrFunc.ConstantTable[Iter.Index].StringVal) {
+					return Iter;
+				}
+			}
+			Value ConstV = GetConstIndex(GlobalName);
+			Value GlobalV = new Value();
+			GlobalV.Index = ConstV.Index;
+			GlobalV.Loc = Value.ELoc.GLOBAL;
+			Globals.Add(GlobalV);
+			return GlobalV;
 		}
+
 
 		Value GetLocalIndex(string Name, bool Create=true) {
 			foreach(LocalEntry Entry in CurrFunc.LocalTable) {
@@ -331,7 +359,9 @@ namespace Cheese
 
 		void FinalizeLocal(Value Local) {
 			CurrFunc.UsedRegs.Add(Local.Index);
+			CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, Local.Index+1);
 		}
+
 
 		Value GetLReg(VList LVals = null, VList RVals = null) {
 			Value Result = null;
@@ -352,6 +382,54 @@ namespace Cheese
 			return Result;
 		}
 
+
+		// Make a Move X to Y general function
+		void EmitAssignOp(Value LVal, Value RVal) {
+			if(LVal == null || RVal == null)
+				return;
+
+			if(LVal.Loc == RVal.Loc && LVal.Index == RVal.Index)
+				return;
+
+			if((LVal.Loc == Value.ELoc.REGISTER || LVal.Loc == Value.ELoc.LOCAL) && 
+			   (RVal.Loc == Value.ELoc.REGISTER || RVal.Loc == Value.ELoc.LOCAL) && 
+			    LVal.Index == RVal.Index)
+				return;
+
+			if(LVal.Loc == Value.ELoc.REGISTER || LVal.Loc == Value.ELoc.LOCAL) {
+
+				if(RVal.Loc == Value.ELoc.REGISTER || RVal.Loc == Value.ELoc.LOCAL) {
+					CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
+				} else if(RVal.Loc == Value.ELoc.CONSTANT) {
+					CurrFunc.Instructions.Add(Instruction.OP.LOADK, LVal.Index, RVal.Index);
+				} else if(RVal.Loc == Value.ELoc.GLOBAL) {
+					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, LVal.Index, RVal.Index);
+				} 
+				// else if table
+				// else if upval
+			} else if(LVal.Loc == Value.ELoc.GLOBAL) {
+				if(RVal.Loc == Value.ELoc.REGISTER || RVal.Loc == Value.ELoc.LOCAL) {
+					CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, RVal.Index, LVal.Index);
+				} else if(RVal.Loc == Value.ELoc.CONSTANT) {
+					int TReg = GetFreeRegister();
+					CurrFunc.Instructions.Add(Instruction.OP.LOADK, TReg, RVal.Index);
+					FreeRegister(TReg);
+					CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, TReg, LVal.Index);
+				} else if(RVal.Loc == Value.ELoc.GLOBAL) {
+					int TReg = GetFreeRegister();
+					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, TReg, RVal.Index);
+					FreeRegister(TReg);
+					CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, TReg, LVal.Index);
+				}
+				// else if table
+				// else if upval
+			} else if(LVal.Loc == Value.ELoc.CONSTANT) {
+				// Maybe assume it means global of constant?
+				throw new Parser.ParseException("assignment to constant", new Token());
+			}
+			// else if table
+			// else if upval
+		}
 
 		void CompileBlock(ParseNode Block) {
 			if(Block.Children == null)
@@ -409,16 +487,8 @@ namespace Cheese
 				if(LVal == null || RVal == null)
 					continue;
 
-				// is LV a global, a local, an upvalue, or a tableval? 
-				if(LVal.Loc == Value.ELoc.GLOBAL || LVal.Loc == Value.ELoc.CONSTANT) {
-					CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, RVal.Index, LVal.Index);
-				}
-				else if(LVal.Loc == Value.ELoc.LOCAL || LVal.Loc == Value.ELoc.REGISTER) {
-					if(LVal.Index != RVal.Index)
-						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
-				}
-				// set table
-				// set upval
+
+				EmitAssignOp(LVal, RVal);
 			}
 
 		}
@@ -454,12 +524,7 @@ namespace Cheese
 				if(LVal != null)
 					FinalizeLocal(LVal);
 
-				// is LV a local 
-				if(LVal != null && RVal != null) {
-					// Skip self-move~
-					if(LVal.Index != RVal.Index)
-						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
-				}
+				EmitAssignOp(LVal, RVal);
 			}
 		}
 
@@ -514,11 +579,12 @@ namespace Cheese
 			FunctionStack.Pop();  // we are done
 			CurrFunc = FunctionStack.Peek();
 
-			Value GVal = GetConstIndex(FuncNameStr);
+			Value GVal = GetGlobalIndex(FuncNameStr);
 			Value ClosureReg = new Value(GetFreeRegister());
 			int UpValCount = 0;
 			CurrFunc.Instructions.Add(Instruction.OP.CLOSURE, ClosureReg.Index, UpValCount);
-			CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, ClosureReg.Index, GVal.Index);
+			EmitAssignOp(GVal, ClosureReg);
+			//CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, ClosureReg.Index, GVal.Index);
 			FreeRegister(GVal);
 			FreeRegister(ClosureReg);
 		}
@@ -584,14 +650,7 @@ namespace Cheese
 				if(LocalV != null) {
 					First = LocalV;
 				} else {
-					bool IsGlobal = CheckGlobal(Name);
-					Value GlobalV = null;
-					if(IsGlobal) {
-						GlobalV = GetConstIndex(Name);
-					} else {
-						AddGlobal(Name);
-						GlobalV = GetConstIndex(Name);
-					}
+					Value GlobalV = GetGlobalIndex(Name);
 					if(GlobalV != null)
 						First = GlobalV;
 				} 
@@ -684,13 +743,12 @@ namespace Cheese
 						Double.TryParse(Child.Token.Value, out NumValue);
 						Value CVal = GetConstIndex(NumValue);
 						Value Dest = GetLRegorTReg(LVals, RVals);
-						CurrFunc.Instructions.Add(Instruction.OP.LOADK, Dest.Index, CVal.Index);
-
+						EmitAssignOp(Dest, CVal);
 						Result.Add(Dest);
 					} else if(Child.Token.Type == Token.EType.STRING) {
 						Value CVal = GetConstIndex(Child.Token.Value);
 						Value Dest = GetLRegorTReg(LVals, RVals);
-						CurrFunc.Instructions.Add(Instruction.OP.LOADK, Dest.Index, CVal.Index);
+						EmitAssignOp(Dest, CVal);
 						Result.Add(Dest);
 					}
 					// '...' ???
@@ -701,6 +759,8 @@ namespace Cheese
 				} else if(Child.Type == ParseNode.EType.PREFIX_EXP) {
 					// might be a var, might be a function call
 					Result.AddRange(CompilePrefixExp(Child, LVals, RVals));
+				} else if(Child.Type == ParseNode.EType.TABLE_CONS) {
+
 				}
 			}
 
@@ -797,27 +857,27 @@ namespace Cheese
 			VList Result = new VList();
 
 			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
-
-				string Name = VarOrExp.Children[0].GetTerminal().Value; // FIXME complicated names
+				ParseNode Var = VarOrExp.Children[0];
+				string Name = Var.GetTerminal().Value; // FIXME complicated names
 				Value VarVal = null;
 				{{
-						Value LocalV = GetLocalIndex(Name, false);
-						if(LocalV != null) {
-							VarVal = LocalV;
-						} else {
-							bool IsGlobal = CheckGlobal(Name);
-							Value GlobalV = GetConstIndex(Name);
-							VarVal = GlobalV;
-						}
-					}}
+					Value LocalV = GetLocalIndex(Name, false);
+					if(LocalV != null) {
+						VarVal = LocalV;
+					} else {
+						//bool IsGlobal = CheckGlobal(Name);
+						Value GlobalV = GetGlobalIndex(Name);
+						VarVal = GlobalV;
+					}
+				}}
 
 				Value LReg = GetLReg(LVals, RVals);
 
 				if((VarVal.Loc == Value.ELoc.REGISTER || VarVal.Loc == Value.ELoc.LOCAL)) {
-					if( (LReg != null && LReg.Index != VarVal.Index && LReg.Consecutive) ) {
+					if( (LReg != null && LReg.Consecutive) ) {
 						Result.Add(LReg);
 						FreeRegister(VarVal);
-						CurrFunc.Instructions.Add(Instruction.OP.MOVE, LReg.Index, VarVal.Index);
+						EmitAssignOp(LReg, VarVal);
 					} else {
 						Result.Add(VarVal);
 					}
@@ -825,7 +885,8 @@ namespace Cheese
 					Value Dest = GetLRegorTReg(LVals, RVals);
 					Result.Add(Dest);
 					FreeRegister(VarVal);
-					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, Dest.Index, VarVal.Index);
+					EmitAssignOp(Dest, VarVal);
+					//CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, Dest.Index, VarVal.Index);
 				}
 			} else { // assume ( exp ) 
 				ParseNode Exp = VarOrExp.Children[1];

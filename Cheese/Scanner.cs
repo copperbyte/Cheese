@@ -391,6 +391,8 @@ namespace Cheese
 			}
 
 			while(true) {
+				if(IsEOF)
+					break;
 				ValueAccum.Append(CurrChar);
 				if(Operators.Contains(ValueAccum.ToString())) {
 					Advance();
@@ -446,7 +448,7 @@ namespace Cheese
 			}  
 
 			// loop until '\n'
-			while(CurrChar != '\n') {
+			while(CurrChar != '\n' && !IsEOF) {
 				ValueAccum.Append(CurrChar);
 				Advance();
 			}
