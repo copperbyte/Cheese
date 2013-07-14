@@ -118,9 +118,14 @@ namespace Cheese
 		internal bool IsTable { 
 			get { return (Key != null); }
 		}
-
 		internal bool IsRegister { 
 			get { return (Loc == ELoc.LOCAL || Loc == ELoc.REGISTER); }
+		}
+		internal bool IsGlobal { 
+			get { return Loc == ELoc.GLOBAL; }
+		}
+		internal bool IsConstant { 
+			get { return Loc == ELoc.CONSTANT; }
 		}
 
 		public Value(int Index=0, ELoc Loc=ELoc.REGISTER, ESide Side=ESide.RIGHT, Value Key=null) {
@@ -302,6 +307,37 @@ namespace Cheese
 			return Result;
 		}
 
+		// MOdified GetConsecutiveRegisters 
+		// Only the function reg is reserved, the others are identified,
+		// but not claimed.
+		// The call point must claim them once the args are evaluated,
+		VList GetStackFrame(int First, int Count) {
+			while(true) {
+				if(IsConsecutiveRegisterFree(First, Count)) {
+					break;
+				}
+				First++;
+			}
+			VList Result = new VList();
+			for(int I = 0; I < Count; I++) {
+				int CR = First+I;
+				if(I == 0) {
+					CurrFunc.UsedRegs.Add(CR);
+					CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, CR+1);
+				}
+				Result.Add(new Value(CR, Value.ELoc.REGISTER, Value.ESide.RIGHT));
+				Result[Result.Count - 1].Consecutive = true;
+			}
+			return Result;
+		}
+
+		void ClaimStackFrame(VList Frame) {
+			foreach(Value Reg in Frame) {
+				CurrFunc.UsedRegs.Add(Reg.Index);
+				CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, Reg.Index+1);
+			}
+		}
+
 		Value GetConstIndex(string ConstValue) {
 			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
 				if(Entry.StringVal != null && Entry.StringVal == ConstValue) {
@@ -420,9 +456,9 @@ namespace Cheese
 			} else if(RVal.IsRegister) {
 				FreeRegister(RVal);
 				CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
-			} else if(RVal.Loc == Value.ELoc.GLOBAL) {
+			} else if(RVal.IsGlobal) {
 				CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, LVal.Index, RVal.Index);
-			} else if(RVal.Loc == Value.ELoc.CONSTANT) {
+			} else if(RVal.IsConstant) {
 				CurrFunc.Instructions.Add(Instruction.OP.LOADK, LVal.Index, RVal.Index);
 			}
 			// else GETUPVAL
@@ -443,10 +479,10 @@ namespace Cheese
 			} else if(LVal.IsRegister) {
 				FreeRegister(RVal);
 				CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
-			} else if(LVal.Loc == Value.ELoc.GLOBAL) {
+			} else if(LVal.IsGlobal) {
 				FreeRegister(RVal);
 				CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, RVal.Index, LVal.Index);
-			} else if(LVal.Loc == Value.ELoc.CONSTANT) {
+			} else if(LVal.IsConstant) {
 				throw new Parser.ParseException("assignment to constant", new Token());
 			} 
 			// else if upval SETUPVAL
@@ -499,9 +535,9 @@ namespace Cheese
 					// generate a GETTABLE, then assign? 
 				} else if(RVal.IsRegister) {
 					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index);
-				} else if(RVal.Loc == Value.ELoc.CONSTANT) {
+				} else if(RVal.IsConstant) {
 					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index, true);
-				} else if(RVal.Loc == Value.ELoc.GLOBAL) {
+				} else if(RVal.IsGlobal) {
 					Value TReg = GetTReg();
 					EmitToRegisterOp(TReg, RVal);
 					FreeRegister(TReg);
@@ -513,7 +549,7 @@ namespace Cheese
 				FreeRegister(UseKey);
 			} else if(LVal.IsRegister) {
 				EmitToRegisterOp(LVal, RVal);
-			} else if(LVal.Loc == Value.ELoc.GLOBAL) {
+			} else if(LVal.IsGlobal) {
 
 				if(RVal.IsRegister) {
 					EmitFromRegisterOp(LVal, RVal);
@@ -523,7 +559,7 @@ namespace Cheese
 					EmitFromRegisterOp(LVal, TReg);
 					FreeRegister(TReg);
 				}
-			} else if(LVal.Loc == Value.ELoc.CONSTANT) {
+			} else if(LVal.IsConstant) {
 				// Maybe assume it means global of constant?
 				throw new Parser.ParseException("assignment to constant", new Token());
 			}
@@ -980,32 +1016,29 @@ namespace Cheese
 				Value FuncVal = Result[Result.Count - 1];
 				Result.RemoveAt(Result.Count - 1);
 
+				FreeRegister(FuncVal);
+
+
 				VList StackSpace;
-				if(IsConsecutiveRegisterFree(FuncVal.Index + 1, StackSpaceNeeded - 1)) {
-					// Keep the stack by our func
-					StackSpace = GetConsecutiveRegisters(FuncVal.Index + 1, StackSpaceNeeded - 1);
-					StackSpace.Insert(0, FuncVal);
-				} else {
-					// Shuffle the FuncVal around to our used stack area
-					StackSpace = GetConsecutiveRegisters(FuncVal.Index, StackSpaceNeeded);
-					FreeRegister(FuncVal);
-					CurrFunc.Instructions.Add(Instruction.OP.MOVE, StackSpace[0].Index, FuncVal.Index);
-					FuncVal = StackSpace[0];
-				}
+				StackSpace = GetStackFrame(FuncVal.Index, StackSpaceNeeded);
+				EmitAssignOp(StackSpace[0], FuncVal);
+				FuncVal = StackSpace[0];
+
 				Console.WriteLine(" FV:{0} ", FuncVal.Index);
 
-				// check if FuncVal.Index + StackSpaceNeeded is avail, consecutive. 
-				//  else get a new reg at the top, move funcval to it.
 				//  Allocate LVals for args? Pass into CompileArgs?
-				VList ArgRegs = new VList();
+				VList ArgRegs = new VList(ArgCount);
 				for(int i =0; i < ArgCount; i++) 
 					ArgRegs.Add(StackSpace[i+1]);
 				VList ArgVs = CompileArgs(Args, ArgRegs);
+				// Claim ArgRegs
+				ClaimStackFrame(ArgRegs);
 
 				CurrFunc.Instructions.Add(Instruction.OP.CALL, FuncVal.Index, ArgVs.Count+1, RetCount+1);
 				// Add return regs to Result?
 				for(int i = 0; i < RetCount; i++)
 					Result.Add(StackSpace[i]);
+				// Free the excess
 				for(int i = RetCount; i < StackSpace.Count; i++)
 					FreeRegister(StackSpace[i]);
 			}
