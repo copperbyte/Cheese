@@ -17,6 +17,12 @@ namespace Cheese
 			InstList.Add(new Instruction(code, a, b));	}
 		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b, int c) {
 			InstList.Add(new Instruction(code, a, b, c));	}
+		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b, bool bK, int c) {
+			InstList.Add(new Instruction(code, a, b, bK, c));	}
+		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b, int c, bool cK) {
+			InstList.Add(new Instruction(code, a, b, c, cK));	}
+		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b, bool bK, int c, bool cK) {
+			InstList.Add(new Instruction(code, a, b, bK, c, cK));	}
 	}
 
 	class Instruction {
@@ -72,6 +78,9 @@ namespace Cheese
 		public Instruction(OP code, int a) { Code = code; A = a; isA = true; }
 		public Instruction(OP code, int a, int b) { Code = code; A = a; B = b; isA = isB = true;}
 		public Instruction(OP code, int a, int b, int c) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; }
+		public Instruction(OP code, int a, int b, bool bK, int c) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; rkB = bK;}
+		public Instruction(OP code, int a, int b, int c, bool cK) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; rkC = cK;}
+		public Instruction(OP code, int a, int b, bool bK, int c, bool cK) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; rkB = bK; rkC = cK;}
 
 
 	}
@@ -106,6 +115,14 @@ namespace Cheese
 		internal bool Consecutive;
 		internal Value Key;
 
+		internal bool IsTable { 
+			get { return (Key != null); }
+		}
+
+		internal bool IsRegister { 
+			get { return (Loc == ELoc.LOCAL || Loc == ELoc.REGISTER); }
+		}
+
 		public Value(int Index=0, ELoc Loc=ELoc.REGISTER, ESide Side=ESide.RIGHT, Value Key=null) {
 			this.Index = Index; 
 			this.Loc = Loc;
@@ -116,7 +133,7 @@ namespace Cheese
 
 		public override string ToString()
 		{
-			string Ret = Side + ":" + Loc + ":" + (Consecutive?"C":"") + Index.ToString();
+			string Ret = /*Side + ":" +*/ Loc + ":" + (Consecutive?"C":"") + Index.ToString();
 			if(Key != null)
 				Ret += "[" + Key.ToString() + "]";
 			return Ret;
@@ -179,8 +196,8 @@ namespace Cheese
 			foreach(Instruction Inst in Instructions) {
 				Console.WriteLine("IC  {0}\t{1}  {2}  {3}", Inst.Code, 
 				                  (Inst.isA?Inst.A.ToString():""), 
-				                  (Inst.isB?Inst.B.ToString():""), 
-				                  (Inst.isC?Inst.C.ToString():""));
+				                  (Inst.isB?(Inst.rkB?(Inst.B+256):Inst.B).ToString():""), 
+				                  (Inst.isC?(Inst.rkC?(Inst.C+256):Inst.C).ToString():""));
 			}
 		}
 	}
@@ -366,69 +383,162 @@ namespace Cheese
 		Value GetLReg(VList LVals = null, VList RVals = null) {
 			Value Result = null;
 			if(LVals != null && RVals != null && LVals.Count > RVals.Count) {
-				if (LVals[RVals.Count].Loc == Value.ELoc.REGISTER ||
-				    LVals[RVals.Count].Loc == Value.ELoc.LOCAL) {
+				if (LVals[RVals.Count].IsRegister && !LVals[RVals.Count].IsTable) {
 					Result = LVals[RVals.Count];
 				}
 			}
 			return Result;
 		}
 
+		Value GetTReg() {
+			return new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
+		}
+
 		Value GetLRegorTReg(VList LVals = null, VList RVals = null) {
 			Value Result = null;
 			Result = GetLReg(LVals, RVals);
 			if(Result == null)
-				Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
+				Result = GetTReg();
 			return Result;
 		}
 
+
+
+
+		// Move Whatever to Register Function
+		// Mostly for moving whatever to a Temp Reg		
+		void EmitToRegisterOp(Value LVal, Value RVal) {
+			Console.WriteLine("E2:  {0}  <=  {1}", LVal, RVal);
+			if(!LVal.IsRegister)
+				return;
+
+			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index)
+				return;
+
+			if(RVal.IsTable) {
+				;//CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index);
+			} else if(RVal.IsRegister) {
+				FreeRegister(RVal);
+				CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
+			} else if(RVal.Loc == Value.ELoc.GLOBAL) {
+				CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, LVal.Index, RVal.Index);
+			} else if(RVal.Loc == Value.ELoc.CONSTANT) {
+				CurrFunc.Instructions.Add(Instruction.OP.LOADK, LVal.Index, RVal.Index);
+			}
+			// else GETUPVAL
+		}
+
+		// Mostly for moving a register to a whatever	
+		void EmitFromRegisterOp(Value LVal, Value RVal) {
+			Console.WriteLine("E3:  {0}  <=  {1}", LVal, RVal);
+			if(!RVal.IsRegister)
+				return;
+
+			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index)
+				return;
+
+
+			if(LVal.IsTable) {
+				;//CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index);
+			} else if(LVal.IsRegister) {
+				FreeRegister(RVal);
+				CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
+			} else if(LVal.Loc == Value.ELoc.GLOBAL) {
+				FreeRegister(RVal);
+				CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, RVal.Index, LVal.Index);
+			} else if(LVal.Loc == Value.ELoc.CONSTANT) {
+				throw new Parser.ParseException("assignment to constant", new Token());
+			} 
+			// else if upval SETUPVAL
+
+		}
 
 		// Make a Move X to Y general function
 		void EmitAssignOp(Value LVal, Value RVal) {
 			if(LVal == null || RVal == null)
 				return;
 
+			Console.WriteLine("E1:  {0}  <=  {1}", LVal, RVal);
+
+
 			if(LVal.Loc == RVal.Loc && LVal.Index == RVal.Index)
 				return;
 
-			if((LVal.Loc == Value.ELoc.REGISTER || LVal.Loc == Value.ELoc.LOCAL) && 
-			   (RVal.Loc == Value.ELoc.REGISTER || RVal.Loc == Value.ELoc.LOCAL) && 
-			    LVal.Index == RVal.Index)
+			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index)
 				return;
 
-			if(LVal.Loc == Value.ELoc.REGISTER || LVal.Loc == Value.ELoc.LOCAL) {
 
-				if(RVal.Loc == Value.ELoc.REGISTER || RVal.Loc == Value.ELoc.LOCAL) {
-					CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
-				} else if(RVal.Loc == Value.ELoc.CONSTANT) {
-					CurrFunc.Instructions.Add(Instruction.OP.LOADK, LVal.Index, RVal.Index);
-				} else if(RVal.Loc == Value.ELoc.GLOBAL) {
-					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, LVal.Index, RVal.Index);
-				} 
-				// else if table
-				// else if upval
-			} else if(LVal.Loc == Value.ELoc.GLOBAL) {
-				if(RVal.Loc == Value.ELoc.REGISTER || RVal.Loc == Value.ELoc.LOCAL) {
-					CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, RVal.Index, LVal.Index);
-				} else if(RVal.Loc == Value.ELoc.CONSTANT) {
-					int TReg = GetFreeRegister();
-					CurrFunc.Instructions.Add(Instruction.OP.LOADK, TReg, RVal.Index);
-					FreeRegister(TReg);
-					CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, TReg, LVal.Index);
-				} else if(RVal.Loc == Value.ELoc.GLOBAL) {
-					int TReg = GetFreeRegister();
-					CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, TReg, RVal.Index);
-					FreeRegister(TReg);
-					CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, TReg, LVal.Index);
+			if(LVal.IsTable) {
+				Console.WriteLine("T1:  {0}  <=  {1}", LVal, RVal);
+				// Get L into a register
+				Value UseLVal = null;
+				if(LVal.IsRegister) {
+					UseLVal = LVal;
+				} else {
+					Value TReg = GetTReg();
+					Value TKey = LVal.Key;
+					LVal.Key = null;
+					EmitAssignOp(TReg, LVal);
+					TReg.Key = TKey;
+					UseLVal = TReg;
 				}
-				// else if table
+
+				Value UseKey = null;
+				if(UseLVal.Key.IsRegister) {
+					UseKey = UseLVal.Key;
+				} else {
+					Value TReg = GetTReg();
+					EmitAssignOp(TReg, LVal.Key);
+					UseKey = TReg;
+				}
+
+				Console.WriteLine("T2:  {0}  <=  {1}", UseLVal, RVal);
+
+				// figure out the R (is an RK) , generate a SETTABLE ;
+				if(RVal.IsTable) {
+					// generate a GETTABLE, then assign? 
+				} else if(RVal.IsRegister) {
+					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index);
+				} else if(RVal.Loc == Value.ELoc.CONSTANT) {
+					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index, true);
+				} else if(RVal.Loc == Value.ELoc.GLOBAL) {
+					Value TReg = GetTReg();
+					EmitToRegisterOp(TReg, RVal);
+					FreeRegister(TReg);
+					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, TReg.Index);
+				} 
 				// else if upval
+
+				FreeRegister(UseLVal);
+				FreeRegister(UseKey);
+			} else if(LVal.IsRegister) {
+				EmitToRegisterOp(LVal, RVal);
+			} else if(LVal.Loc == Value.ELoc.GLOBAL) {
+
+				if(RVal.IsRegister) {
+					EmitFromRegisterOp(LVal, RVal);
+				} else {
+					Value TReg = GetTReg();
+					EmitToRegisterOp(TReg, RVal);
+					EmitFromRegisterOp(LVal, TReg);
+					FreeRegister(TReg);
+				}
 			} else if(LVal.Loc == Value.ELoc.CONSTANT) {
 				// Maybe assume it means global of constant?
 				throw new Parser.ParseException("assignment to constant", new Token());
 			}
-			// else if table
 			// else if upval
+		}
+
+		// Return self, or make a TReg, assign it.
+		// Caller should Free this, always
+		Value GetAsRegister(Value SrcVal) {
+			if(SrcVal.IsRegister)
+				return SrcVal;
+
+			Value TReg = GetTReg();
+			EmitToRegisterOp(TReg, SrcVal);
+			return TReg;
 		}
 
 		void CompileBlock(ParseNode Block) {
@@ -481,8 +591,8 @@ namespace Cheese
 				if(RVs.Count > I)
 					RVal = RVs[I];
 
-				if(RVal != null)
-					FreeRegister(RVal);
+				//if(RVal != null)
+				//	FreeRegister(RVal);
 
 				if(LVal == null || RVal == null)
 					continue;
@@ -518,8 +628,8 @@ namespace Cheese
 				if(RVs.Count > I)
 					RVal = RVs[I];
 
-				if(RVal != null)
-					FreeRegister(RVal);
+				//if(RVal != null)
+				//	FreeRegister(RVal);
 
 				if(LVal != null)
 					FinalizeLocal(LVal);
@@ -643,9 +753,10 @@ namespace Cheese
 
 			Value First = null;
 
+			int ChildIndex = 0;
 			if(Var.Children[0].Type == ParseNode.EType.TERMINAL &&
 				Var.Children[0].Token.Type == Token.EType.NAME) {
-				string Name = Var.Children[0].Token.Value;
+				string Name = Var.Children[0].Token.Value; ChildIndex++;
 				Value LocalV = GetLocalIndex(Name, false);
 				if(LocalV != null) {
 					First = LocalV;
@@ -662,8 +773,57 @@ namespace Cheese
 				First = ExpVs[0];
 				ParseNode VarSuffix = Var.Children[3];
 				// Suffix stuff
+				ChildIndex += 3;
 			}
 
+			VList Keys = new VList();
+			while(ChildIndex < Var.Children.Count) {
+				if(Var.Children[ChildIndex].Type != ParseNode.EType.VAR_SUFFIX) {
+					// throw?
+					ChildIndex++;
+					continue;
+				}
+
+				// Value CompileVarSuffix(ParseNode VarSuffix)
+				//varSuffix: nameAndArgs* ('[' exp ']' | '.' NAME);
+				ParseNode VarSuffix = Var.Children[ChildIndex]; ChildIndex++;
+
+				// handle this somehow?
+				while(VarSuffix.Children[0].Type == ParseNode.EType.NAME_AND_ARGS) {
+					break;
+				}
+				Value Key = null;
+				if(VarSuffix.Children[0].Type == ParseNode.EType.TERMINAL &&
+					VarSuffix.Children[0].Token.IsBracket("[")) {
+					VList SubRs = CompileExp(VarSuffix.Children[1]);
+					Key = SubRs[0];
+				}
+				else if(VarSuffix.Children[0].Type == ParseNode.EType.TERMINAL &&
+				        VarSuffix.Children[0].Token.IsOperator(".")) {
+					string Name = VarSuffix.Children[1].Token.Value;
+					Key = GetConstIndex(Name);
+				} 
+				if(Key != null)
+					Keys.Add(Key);
+			}
+
+			if(Keys.Count > 0) {
+				Value Curr = First;
+				// Take first, wrap it in a new Table value
+				for(int i = 0; i < Keys.Count; i++) {
+					Value Key = Keys[i];
+					Curr.Key = Key;
+
+					if( (i + 1) < Keys.Count) {
+						Value TReg = GetTReg();
+						EmitAssignOp(TReg, Curr);
+						FreeRegister(Curr);
+						Curr = TReg;
+					}
+					//Console.WriteLine("LV {0}", Curr.ToString());
+				}
+				First = Curr;
+			} 
 
 			// More Suffix Stuff
 			Result = First;
@@ -742,14 +902,16 @@ namespace Cheese
 						double NumValue = 0.0;
 						Double.TryParse(Child.Token.Value, out NumValue);
 						Value CVal = GetConstIndex(NumValue);
-						Value Dest = GetLRegorTReg(LVals, RVals);
-						EmitAssignOp(Dest, CVal);
-						Result.Add(Dest);
+						Result.Add(CVal);
+						//Value Dest = GetLRegorTReg(LVals, RVals);
+						//EmitAssignOp(Dest, CVal);
+						//Result.Add(Dest);
 					} else if(Child.Token.Type == Token.EType.STRING) {
 						Value CVal = GetConstIndex(Child.Token.Value);
-						Value Dest = GetLRegorTReg(LVals, RVals);
-						EmitAssignOp(Dest, CVal);
-						Result.Add(Dest);
+						Result.Add(CVal);
+						//Value Dest = GetLRegorTReg(LVals, RVals);
+						//EmitAssignOp(Dest, CVal);
+						//Result.Add(Dest);
 					}
 					// '...' ???
 				} else if(Child.Type == ParseNode.EType.UN_OP_WRAP) {
@@ -760,7 +922,7 @@ namespace Cheese
 					// might be a var, might be a function call
 					Result.AddRange(CompilePrefixExp(Child, LVals, RVals));
 				} else if(Child.Type == ParseNode.EType.TABLE_CONS) {
-
+					Result.Add(CompileTableConstructor(Child, LVals, RVals));
 				}
 			}
 
@@ -858,7 +1020,7 @@ namespace Cheese
 
 			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
 				ParseNode Var = VarOrExp.Children[0];
-				string Name = Var.GetTerminal().Value; // FIXME complicated names
+				string Name = Var.Children[0].Token.Value; // FIXME complicated names
 				Value VarVal = null;
 				{{
 					Value LocalV = GetLocalIndex(Name, false);
@@ -871,12 +1033,62 @@ namespace Cheese
 					}
 				}}
 
+				{{
+					VList Keys = new VList();
+					int ChildIndex = 1;
+					while(ChildIndex < Var.Children.Count) {
+						if(Var.Children[ChildIndex].Type != ParseNode.EType.VAR_SUFFIX) {
+							// throw?
+							ChildIndex++;
+							continue;
+						}
+
+						// Value CompileVarSuffix(ParseNode VarSuffix)
+						//varSuffix: nameAndArgs* ('[' exp ']' | '.' NAME);
+						ParseNode VarSuffix = Var.Children[ChildIndex]; ChildIndex++;
+
+						// handle this somehow?
+						while(VarSuffix.Children[0].Type == ParseNode.EType.NAME_AND_ARGS) {
+							break;
+						}
+						Value Key = null;
+						if(VarSuffix.Children[0].Type == ParseNode.EType.TERMINAL &&
+						   VarSuffix.Children[0].Token.IsBracket("[")) {
+							VList SubRs = CompileExp(VarSuffix.Children[1]);
+							Key = SubRs[0];
+						}
+						else if(VarSuffix.Children[0].Type == ParseNode.EType.TERMINAL &&
+						        VarSuffix.Children[0].Token.IsOperator(".")) {
+							string SuffixName = VarSuffix.Children[1].Token.Value;
+							Key = GetConstIndex(SuffixName);
+						} 
+						if(Key != null)
+							Keys.Add(Key);
+					}
+
+					if(Keys.Count > 0) {
+						Value Curr = VarVal;
+						// Take first, wrap it in a new Table value
+						for(int i = 0; i < Keys.Count; i++) {
+							Value Key = Keys[i];
+							Curr.Key = Key;
+
+							if( (i + 1) < Keys.Count) {
+								Value TReg = GetTReg();
+								EmitAssignOp(TReg, Curr);
+								Curr = TReg;
+							}
+						}
+						VarVal = Curr;
+					} 
+				}}
+
 				Value LReg = GetLReg(LVals, RVals);
 
-				if((VarVal.Loc == Value.ELoc.REGISTER || VarVal.Loc == Value.ELoc.LOCAL)) {
+				if(VarVal.IsRegister) {
 					if( (LReg != null && LReg.Consecutive) ) {
 						Result.Add(LReg);
-						FreeRegister(VarVal);
+						//FreeRegister(VarVal);
 						EmitAssignOp(LReg, VarVal);
 					} else {
 						Result.Add(VarVal);
@@ -884,7 +1096,7 @@ namespace Cheese
 				} else {
 					Value Dest = GetLRegorTReg(LVals, RVals);
 					Result.Add(Dest);
-					FreeRegister(VarVal);
+					//FreeRegister(VarVal);
 					EmitAssignOp(Dest, VarVal);
 					//CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, Dest.Index, VarVal.Index);
 				}
@@ -938,6 +1150,16 @@ namespace Cheese
 			return ArgCount;
 		}
 
+		Value CompileTableConstructor(ParseNode TableCons, VList LVals=null, VList RVals=null) {
+
+			// always create to a fresh register
+			Value ConsReg = GetLRegorTReg();
+
+			CurrFunc.Instructions.Add(Instruction.OP.NEWTABLE, ConsReg.Index, 0, 0); // FIXME
+
+			return ConsReg;
+		}
+
 		Value CompileBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
 
 			ParseNode Left = BinOp.Children[0];
@@ -945,8 +1167,8 @@ namespace Cheese
 			ParseNode Right = BinOp.Children[2];
 
 
-			VList LV = CompileExp(Left);
-			VList RV = CompileExp(Right);
+			VList LVs = CompileExp(Left);
+			VList RVs = CompileExp(Right);
 
 
 			Instruction.OP InstOp = Instruction.OP.ERROR;
@@ -963,13 +1185,16 @@ namespace Cheese
 			else if(Op.Token.IsOperator("%"))
 				InstOp = Instruction.OP.MOD;
 
-			FreeRegister(LV[0]);
-			FreeRegister(RV[0]);
+			Value LV = GetAsRegister(LVs[0]);
+			Value RV = GetAsRegister(RVs[0]);
+
+			FreeRegister(LV);
+			FreeRegister(RV);
 
 			//Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 			Value Result = GetLRegorTReg(LVals, RVals);
 
-			CurrFunc.Instructions.Add(InstOp, Result.Index, LV[0].Index, RV[0].Index);
+			CurrFunc.Instructions.Add(InstOp, Result.Index, LV.Index, RV.Index);
 
 			return Result;
 		}
@@ -979,7 +1204,7 @@ namespace Cheese
 			ParseNode Op = UnOp.Children[0];
 			ParseNode Right = UnOp.Children[1];
 
-			VList RV = CompileExp(Right);
+			VList RVs = CompileExp(Right);
 
 
 			Instruction.OP InstOp = Instruction.OP.ERROR;
@@ -990,11 +1215,12 @@ namespace Cheese
 			else if(Op.Token.IsOperator("#"))
 				InstOp = Instruction.OP.LEN;
 
-			FreeRegister(RV[0]);
+			Value RV = GetAsRegister(RVs[0]);
+			FreeRegister(RV);
 
 			Value Result = GetLRegorTReg(LVals, RVals);
 
-			CurrFunc.Instructions.Add(InstOp, Result.Index, RV[0].Index);
+			CurrFunc.Instructions.Add(InstOp, Result.Index, RV.Index);
 
 			return Result;
 		}
