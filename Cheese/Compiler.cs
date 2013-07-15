@@ -136,6 +136,14 @@ namespace Cheese
 			this.Key = null;
 		}
 
+		public Value(Value Other) {
+			this.Index = Other.Index;
+			this.Loc = Other.Loc;
+			this.Side = Other.Side;
+			this.Consecutive = Other.Consecutive;
+			this.Key = Other.Key;
+		}
+
 		public override string ToString()
 		{
 			string Ret = /*Side + ":" +*/ Loc + ":" + (Consecutive?"C":"") + Index.ToString();
@@ -439,10 +447,66 @@ namespace Cheese
 		}
 
 
+		// make table resolution recursive? 
+		// end point, table must be Register, Key must be REG/CONST
+		// Takes Value, returns Value with directly usable Table parts?
+		Value ResolveTableValue(Value Original) {
 
+			if(!Original.IsTable)
+				return null;
+
+			Value UseVal = null;
+
+			if(Original.IsRegister) {
+				UseVal = new Value(Original);
+			} else {
+				Value TReg = GetTReg();
+				Value TKey = Original.Key;
+				Original.Key = null;
+				EmitToRegisterOp(TReg, Original);
+				Original.Key = TKey;
+				TReg.Key = TKey;
+				UseVal = TReg;
+			}
+
+			// Get Key into a REG or CONST
+			Value UseKey = null;
+			//bool KeyConst = false;
+			if(Original.Key.IsRegister) {
+				UseKey = new Value(Original.Key);
+			} else if(Original.Key.IsConstant) {
+				UseKey = new Value(Original.Key);
+				//KeyConst = true;
+			} else {
+				Value TReg = GetTReg();
+				Value TK = Original.Key.Key;
+				Original.Key.Key = null;
+				EmitToRegisterOp(TReg, Original.Key);
+				Original.Key.Key = TK;
+				UseKey = TReg;
+				UseKey.Key = TK;
+			}
+
+
+			UseVal.Key = UseKey;
+
+			if(UseVal.Key.IsTable) {
+				// GETTABLE
+				// Chain UseKey's Key to its result register
+				Value ChainKey = UseKey.Key;
+				UseKey.Key = null;
+				Value ChainTable = GetAsRegister(UseVal);
+				ChainTable.Key = ChainKey;
+				FreeRegister(UseKey);
+				FreeRegister(UseVal);
+				return ResolveTableValue(ChainTable);
+			}
+
+			return UseVal;
+		}
 
 		// Move Whatever to Register Function
-		// Mostly for moving whatever to a Temp Reg		
+		// Mostly for moving whatever RVal to a Temp Reg		
 		void EmitToRegisterOp(Value LVal, Value RVal) {
 			Console.WriteLine("E2:  {0}  <=  {1}", LVal, RVal);
 			if(!LVal.IsRegister)
@@ -452,7 +516,11 @@ namespace Cheese
 				return;
 
 			if(RVal.IsTable) {
-				;//CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index);
+				// Magic RVal to Good-Table-RVal Function Here
+				Value UseRVal = ResolveTableValue(RVal);
+				FreeRegister(UseRVal.Key);
+				FreeRegister(UseRVal);
+				CurrFunc.Instructions.Add(Instruction.OP.GETTABLE, LVal.Index, UseRVal.Index, UseRVal.Key.Index, UseRVal.Key.IsConstant);
 			} else if(RVal.IsRegister) {
 				FreeRegister(RVal);
 				CurrFunc.Instructions.Add(Instruction.OP.MOVE, LVal.Index, RVal.Index);
@@ -464,7 +532,7 @@ namespace Cheese
 			// else GETUPVAL
 		}
 
-		// Mostly for moving a register to a whatever	
+		// Mostly for moving a Temp Reg to a whatever LVal	
 		void EmitFromRegisterOp(Value LVal, Value RVal) {
 			Console.WriteLine("E3:  {0}  <=  {1}", LVal, RVal);
 			if(!RVal.IsRegister)
@@ -506,6 +574,10 @@ namespace Cheese
 
 			if(LVal.IsTable) {
 				Console.WriteLine("T1:  {0}  <=  {1}", LVal, RVal);
+				// make table resolution recursive? 
+				// end point, table must be Register, Key must be REG/CONST
+				// Takes Value, returns Value with directly usable Table parts?
+
 				// Get L into a register
 				Value UseLVal = null;
 				if(LVal.IsRegister) {
@@ -514,17 +586,23 @@ namespace Cheese
 					Value TReg = GetTReg();
 					Value TKey = LVal.Key;
 					LVal.Key = null;
-					EmitAssignOp(TReg, LVal);
+					EmitToRegisterOp(TReg, LVal);
+					LVal.Key = TKey;
 					TReg.Key = TKey;
 					UseLVal = TReg;
 				}
 
+				// Get Key into a REG or CONST
 				Value UseKey = null;
+				bool KeyConst = false;
 				if(UseLVal.Key.IsRegister) {
 					UseKey = UseLVal.Key;
+				} else if(UseLVal.Key.IsConstant) {
+					UseKey = UseLVal.Key;
+					KeyConst = true;
 				} else {
 					Value TReg = GetTReg();
-					EmitAssignOp(TReg, LVal.Key);
+					EmitToRegisterOp(TReg, UseLVal.Key);
 					UseKey = TReg;
 				}
 
@@ -532,27 +610,34 @@ namespace Cheese
 
 				// figure out the R (is an RK) , generate a SETTABLE ;
 				if(RVal.IsTable) {
+					Value TReg = GetTReg();
+					EmitToRegisterOp(TReg, RVal);
+					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, RVal.Index);
+					FreeRegister(TReg);
 					// generate a GETTABLE, then assign? 
 				} else if(RVal.IsRegister) {
-					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index);
+					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, RVal.Index);
 				} else if(RVal.IsConstant) {
-					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, RVal.Index, true);
+					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, RVal.Index, true);
 				} else if(RVal.IsGlobal) {
 					Value TReg = GetTReg();
 					EmitToRegisterOp(TReg, RVal);
 					FreeRegister(TReg);
-					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, TReg.Index);
+					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, TReg.Index);
 				} 
 				// else if upval
 
 				FreeRegister(UseLVal);
 				FreeRegister(UseKey);
+				FreeRegister(RVal);
 			} else if(LVal.IsRegister) {
 				EmitToRegisterOp(LVal, RVal);
+				FreeRegister(RVal);
 			} else if(LVal.IsGlobal) {
 
 				if(RVal.IsRegister) {
 					EmitFromRegisterOp(LVal, RVal);
+					FreeRegister(RVal);
 				} else {
 					Value TReg = GetTReg();
 					EmitToRegisterOp(TReg, RVal);
@@ -569,7 +654,7 @@ namespace Cheese
 		// Return self, or make a TReg, assign it.
 		// Caller should Free this, always
 		Value GetAsRegister(Value SrcVal) {
-			if(SrcVal.IsRegister)
+			if(SrcVal.IsRegister && !SrcVal.IsTable)
 				return SrcVal;
 
 			Value TReg = GetTReg();
@@ -812,6 +897,8 @@ namespace Cheese
 				ChildIndex += 3;
 			}
 
+			Result = First;
+
 			VList Keys = new VList();
 			while(ChildIndex < Var.Children.Count) {
 				if(Var.Children[ChildIndex].Type != ParseNode.EType.VAR_SUFFIX) {
@@ -844,25 +931,23 @@ namespace Cheese
 			}
 
 			if(Keys.Count > 0) {
-				Value Curr = First;
+				Value Curr = new Value(First);
 				// Take first, wrap it in a new Table value
 				for(int i = 0; i < Keys.Count; i++) {
 					Value Key = Keys[i];
 					Curr.Key = Key;
 
 					if( (i + 1) < Keys.Count) {
-						Value TReg = GetTReg();
-						EmitAssignOp(TReg, Curr);
+						Value TReg = GetAsRegister(Curr);
+						FreeRegister(Curr.Key);
 						FreeRegister(Curr);
 						Curr = TReg;
 					}
 					//Console.WriteLine("LV {0}", Curr.ToString());
 				}
-				First = Curr;
+				Result = Curr;
 			} 
 
-			// More Suffix Stuff
-			Result = First;
 			return Result;
 		}
 
@@ -1100,15 +1185,16 @@ namespace Cheese
 					}
 
 					if(Keys.Count > 0) {
-						Value Curr = VarVal;
+						Value Curr = new Value(VarVal);
 						// Take first, wrap it in a new Table value
 						for(int i = 0; i < Keys.Count; i++) {
 							Value Key = Keys[i];
 							Curr.Key = Key;
 
 							if( (i + 1) < Keys.Count) {
-								Value TReg = GetTReg();
-								EmitAssignOp(TReg, Curr);
+								Value TReg = GetAsRegister(Curr);
+								FreeRegister(Curr.Key);
+								FreeRegister(Curr);
 								Curr = TReg;
 							}
 						}
@@ -1116,6 +1202,9 @@ namespace Cheese
 					} 
 				}}
 
+				Result.Add(VarVal);
+
+				/*
 				Value LReg = GetLReg(LVals, RVals);
 
 				if(VarVal.IsRegister) {
@@ -1133,6 +1222,7 @@ namespace Cheese
 					EmitAssignOp(Dest, VarVal);
 					//CurrFunc.Instructions.Add(Instruction.OP.GETGLOBAL, Dest.Index, VarVal.Index);
 				}
+				*/
 			} else { // assume ( exp ) 
 				ParseNode Exp = VarOrExp.Children[1];
 				Result = CompileExp(Exp);
