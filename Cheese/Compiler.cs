@@ -276,6 +276,22 @@ namespace Cheese
 			return Result;
 		}
 
+		// Does not reserve the register, just gets the next free one. 
+		// Use it to set up something, while leaving it available as a temp
+		// until its final, then Claim it.
+		int GetUnclaimedRegister() {
+			int Result = 0;
+			while(CurrFunc.UsedRegs.Contains(Result)) {
+				Result++;
+			}
+			return Result;
+		}
+
+		void ClaimRegister(Value Reg) {
+			CurrFunc.UsedRegs.Add(Reg.Index);
+			CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, Reg.Index+1);
+		}
+
 
 		void FreeRegister(Value Reg) {
 			if(Reg.Loc == Value.ELoc.REGISTER)
@@ -436,6 +452,9 @@ namespace Cheese
 
 		Value GetTReg() {
 			return new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
+		}
+		Value GetUnclaimedReg() {
+			return new Value(GetUnclaimedRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 		}
 
 		Value GetLRegorTReg(VList LVals = null, VList RVals = null) {
@@ -657,8 +676,9 @@ namespace Cheese
 			if(SrcVal.IsRegister && !SrcVal.IsTable)
 				return SrcVal;
 
-			Value TReg = GetTReg();
+			Value TReg = GetUnclaimedReg();
 			EmitToRegisterOp(TReg, SrcVal);
+			ClaimRegister(TReg);
 			return TReg;
 		}
 
@@ -946,6 +966,7 @@ namespace Cheese
 					//Console.WriteLine("LV {0}", Curr.ToString());
 				}
 				Result = Curr;
+				Result = ResolveTableValue(Result);
 			} 
 
 			return Result;
