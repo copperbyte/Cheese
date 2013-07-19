@@ -1,0 +1,11 @@
+--Super Simple Test Four
+
+
+array_tab = { "apple", "grape", "orange" };
+hash_tab = { STR=1, AGI=2, INT=3 };
+
+local x = array_tab[ hash_tab.STR ];
+local y = array_tab[ hash_tab.AGI ];
+local z = array_tab[ hash_tab.INT ];
+
+print( x, y, z );
