@@ -1295,11 +1295,43 @@ namespace Cheese
 		}
 
 		Value CompileTableConstructor(ParseNode TableCons, VList LVals=null, VList RVals=null) {
+			// tableconstructor : '{' (fieldlist)? '}';
+			//fieldlist : field (fieldsep field)* (fieldsep)?;
+			//field : '[' exp ']' '=' exp | NAME '=' exp | exp;
+			//fieldsep : ',' | ';';| ';';
 
 			// always create to a fresh register
 			Value ConsReg = GetLRegorTReg();
 
-			CurrFunc.Instructions.Add(Instruction.OP.NEWTABLE, ConsReg.Index, 0, 0); // FIXME
+			// Detect Child count.
+			// Detect Array or Hash type
+			ParseNode FieldList = null;
+
+			Console.WriteLine(" TC.C: {0} ", TableCons.Children.Count);
+			if(TableCons.Children.Count > 2) {
+				FieldList = TableCons.Children[1];
+				Console.WriteLine(" FL.C: {0} ", FieldList.Children.Count);
+			}
+
+			int ArrayCount = 0, HashCount = 0;
+			if(FieldList != null) {
+				foreach(ParseNode Field in FieldList.Children) {
+					if(Field.Type != ParseNode.EType.FIELD) // skip the seperators
+						continue; 
+
+					// Detect Array or Hash
+					// by Equal sign.
+
+					// Track array regs for setlist
+				}
+			}
+
+
+			CurrFunc.Instructions.Add(Instruction.OP.NEWTABLE, ConsReg.Index, ArrayCount, HashCount); // FIXME
+
+			// Build Fields
+
+			// Setlist
 
 			return ConsReg;
 		}
