@@ -312,8 +312,8 @@ namespace Cheese
 		}
 
 		// First is first tried, not promised first
-		// Actually register them as used? Or do like 'local'?
-		VList GetConsecutiveRegisters(int First, int Count) {
+		// Remember to Claim later
+		VList UnclaimedConsecutiveRegisters(int First, int Count) {
 			while(true) {
 				if(IsConsecutiveRegisterFree(First, Count)) {
 					break;
@@ -323,8 +323,8 @@ namespace Cheese
 			VList Result = new VList();
 			for(int I = 0; I < Count; I++) {
 				int CR = First+I;
-				CurrFunc.UsedRegs.Add(CR);
-				CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, CR+1);
+				//CurrFunc.UsedRegs.Add(CR);
+				//CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, CR+1);
 				Result.Add(new Value(CR, Value.ELoc.REGISTER, Value.ESide.RIGHT));
 				Result[Result.Count - 1].Consecutive = true;
 			}
@@ -1300,9 +1300,6 @@ namespace Cheese
 			//field : '[' exp ']' '=' exp | NAME '=' exp | exp;
 			//fieldsep : ',' | ';';| ';';
 
-			// always create to a fresh register
-			Value ConsReg = GetLRegorTReg();
-
 			// Detect Child count.
 			// Detect Array or Hash type
 			ParseNode FieldList = null;
@@ -1318,18 +1315,73 @@ namespace Cheese
 				foreach(ParseNode Field in FieldList.Children) {
 					if(Field.Type != ParseNode.EType.FIELD) // skip the seperators
 						continue; 
-
-					// Detect Array or Hash
-					// by Equal sign.
-
-					// Track array regs for setlist
+					if(Field.Children.Count == 1) 
+						ArrayCount++;
+					else if(Field.Children.Count == 3) // blah = exp
+						HashCount++;
 				}
 			}
 
 
+			// always create to a fresh register
+			Value ConsReg = GetLRegorTReg();		
+
 			CurrFunc.Instructions.Add(Instruction.OP.NEWTABLE, ConsReg.Index, ArrayCount, HashCount); // FIXME
 
 			// Build Fields
+			// Get Registers for Arrays
+			if(FieldList != null) {
+				VList ArrayVals = null;
+				int ArrayIndex = 0; // next Array index to use
+				if(ArrayCount > 0)
+					ArrayVals = UnclaimedConsecutiveRegisters(ConsReg.Index+1, ArrayCount);
+
+				foreach(ParseNode Field in FieldList.Children) {
+					if(Field.Type != ParseNode.EType.FIELD) // skip the seperators
+						continue; 
+					if(Field.Children.Count == 1) { 
+						// Process exp into Treg, track for setlist
+						VList T = CompileExp(Field.Children[0], ArrayVals, null);
+						if(T.Count > 1) {
+							; // FIXME
+						}
+						EmitAssignOp(ArrayVals[ArrayIndex], T[0]);
+						ClaimRegister(ArrayVals[ArrayIndex]);
+						ArrayIndex++;
+					}
+					else if(Field.Children.Count == 3)  {// blah = exp
+						// Process, SETTABLE.
+						// Process Left make key, Process Right
+						ParseNode KeyNode = Field.Children[0];
+						ParseNode ValNode = Field.Children[2];
+
+						Value KeyVal = null;
+						if(KeyNode.Type == ParseNode.EType.TERMINAL && 
+							KeyNode.Token.Type == Token.EType.NAME) {
+							KeyVal = GetConstIndex(KeyNode.Token.Value);
+						} else if(KeyNode.Type == ParseNode.EType.TERMINAL &&
+							KeyNode.Token.IsBracket("[")) {
+							VList T = CompileExp(KeyNode.Children[1]);
+							KeyVal = T[0];
+						}
+						ConsReg.Key = KeyVal;
+
+						VList Values = CompileExp(ValNode);
+
+						EmitAssignOp(ConsReg, Values[0]);
+						FreeRegister(ConsReg.Key);
+						FreeRegister(Values[0]);
+					}
+				}
+
+				if(ArrayCount > 0) {
+					CurrFunc.Instructions.Add(Instruction.OP.SETLIST, ConsReg.Index, ArrayCount, 1);
+					// FIXME: SETLIST pages, 50+? Move into Loop
+					foreach(Value Val in ArrayVals) {
+						FreeRegister(Val);
+					}
+				}
+			}
 
 			// Setlist
 
