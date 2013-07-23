@@ -474,6 +474,8 @@ namespace Cheese
 			if(!Original.IsTable)
 				return null;
 
+			Console.WriteLine("R:  {0} ", Original);
+
 			Value UseVal = null;
 
 			if(Original.IsRegister) {
@@ -491,6 +493,8 @@ namespace Cheese
 			// Get Key into a REG or CONST
 			Value UseKey = null;
 			//bool KeyConst = false;
+
+
 			if(Original.Key.IsRegister) {
 				UseKey = new Value(Original.Key);
 			} else if(Original.Key.IsConstant) {
@@ -772,10 +776,11 @@ namespace Cheese
 				//if(RVal != null)
 				//	FreeRegister(RVal);
 
-				if(LVal != null)
-					FinalizeLocal(LVal);
+
 
 				EmitAssignOp(LVal, RVal);
+
+				FinalizeLocal(LVal);	
 			}
 		}
 
@@ -940,6 +945,12 @@ namespace Cheese
 					VarSuffix.Children[0].Token.IsBracket("[")) {
 					VList SubRs = CompileExp(VarSuffix.Children[1]);
 					Key = SubRs[0];
+					if(Key.IsTable) {
+						Value TReg = GetUnclaimedReg();
+						EmitToRegisterOp(TReg, Key);
+						ClaimRegister(TReg);
+						Key = TReg;
+					}
 				}
 				else if(VarSuffix.Children[0].Type == ParseNode.EType.TERMINAL &&
 				        VarSuffix.Children[0].Token.IsOperator(".")) {
@@ -1195,6 +1206,12 @@ namespace Cheese
 						   VarSuffix.Children[0].Token.IsBracket("[")) {
 							VList SubRs = CompileExp(VarSuffix.Children[1]);
 							Key = SubRs[0];
+							if(Key.IsTable){
+								Value TReg = GetUnclaimedReg();
+								EmitToRegisterOp(TReg, Key);
+								ClaimRegister(TReg);
+								Key = TReg;
+							}
 						}
 						else if(VarSuffix.Children[0].Type == ParseNode.EType.TERMINAL &&
 						        VarSuffix.Children[0].Token.IsOperator(".")) {
