@@ -1,0 +1,14 @@
+--Super Simple Test Five
+
+
+n = 12
+
+if n > 15 then
+  print("the number is > 15")
+elseif n > 10 then
+  print("the number is > 10")
+elseif n > 5 then
+  print("the number is > 5")
+else
+  print("the number is <= 5")
+end
