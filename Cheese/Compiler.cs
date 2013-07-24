@@ -1137,17 +1137,24 @@ namespace Cheese
 
 
 				VList StackSpace;
-				StackSpace = GetStackFrame(FuncVal.Index, StackSpaceNeeded);
+				if(FuncVal.IsRegister)
+					StackSpace = GetStackFrame(FuncVal.Index, StackSpaceNeeded);
+				else 
+					StackSpace = GetStackFrame(0, StackSpaceNeeded);
 				EmitAssignOp(StackSpace[0], FuncVal);
 				FuncVal = StackSpace[0];
 
-				Console.WriteLine(" FV:{0} ", FuncVal.Index);
+				Console.WriteLine(" FV:{0} ", FuncVal.ToString());
 
 				//  Allocate LVals for args? Pass into CompileArgs?
 				VList ArgRegs = new VList(ArgCount);
 				for(int i =0; i < ArgCount; i++) 
 					ArgRegs.Add(StackSpace[i+1]);
 				VList ArgVs = CompileArgs(Args, ArgRegs);
+				for(int i =0; i < ArgCount; i++)  {
+					EmitAssignOp(ArgRegs[i], ArgVs[i]);
+					ClaimRegister(ArgRegs[i]);
+				}
 				// Claim ArgRegs
 				ClaimStackFrame(ArgRegs);
 
