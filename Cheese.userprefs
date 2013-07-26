@@ -1,21 +1,25 @@
 ﻿<Properties>
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x86" ActiveRuntime="Mono 3.0.10" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="Cheese\Program.cs">
+  <MonoDevelop.Ide.Workbench ActiveDocument="Cheese\Compiler.cs">
     <Files>
-      <File FileName="Cheese\Program.cs" Line="25" Column="4" />
-      <File FileName="Cheese\Parser.cs" Line="206" Column="15" />
-      <File FileName="Cheese\Compiler.cs" Line="9" Column="4" />
+      <File FileName="Cheese\Program.cs" Line="22" Column="82" />
+      <File FileName="Cheese\Parser.cs" Line="26" Column="4" />
+      <File FileName="Cheese\Compiler.cs" Line="1457" Column="28" />
     </Files>
     <Pads>
       <Pad Id="ProjectPad">
         <State expanded="True">
-          <Node name="Cheese" expanded="True" selected="True" />
+          <Node name="Cheese" expanded="True">
+            <Node name="Compiler.cs" selected="True" />
+          </Node>
         </State>
       </Pad>
     </Pads>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>
-    <BreakpointStore />
+    <BreakpointStore>
+      <Breakpoint file="C:\Dev\gitsrc\Cheese\Cheese\Compiler.cs" line="1151" column="1" />
+    </BreakpointStore>
   </MonoDevelop.Ide.DebuggingService.Breakpoints>
   <MonoDevelop.Ide.DebuggingService.PinnedWatches>
     <Watch file="MyLua\Program.cs" line="1112" offsetX="549" offsetY="6578" expression="NAA" liveUpdate="False" />

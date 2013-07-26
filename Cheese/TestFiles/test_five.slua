@@ -1,5 +1,11 @@
 --Super Simple Test Five
 
+q = 4;
+u = 7;
+b = q <= u;
+print("b: ",b);
+
+----
 
 n = 12
 
@@ -11,4 +17,11 @@ elseif n > 5 then
   print("the number is > 5")
 else
   print("the number is <= 5")
+end
+
+
+if n == 15 then
+  print("the number is == 15")
+elseif n ~= 15 then
+  print("the number is ~= 15")
 end
