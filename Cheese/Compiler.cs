@@ -697,6 +697,8 @@ namespace Cheese
 					CompileFunctionCallStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.FUNC_STAT)
 					CompileFunctionStmt(Statement);
+				else if(Statement.Type == ParseNode.EType.IF_STAT) 
+					CompileIfStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
 					CompileLocalAssignStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.RETURN_STAT) 
@@ -869,6 +871,22 @@ namespace Cheese
 		}
 
 
+		void CompileIfStmt(ParseNode IfStatement) {
+			// 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end' |
+			ParseNode Exp = IfStatement.Children[1];
+			//VList RetVs = CompileExpList(ExpList);
+			ParseNode Block = IfStatement.Children[3];
+
+			int PreExpOp = CurrFunc.Instructions.Count;
+			VList ExpVs = CompileExp(Exp);
+			int PostExpOp = CurrFunc.Instructions.Count;
+			// LT ? LE?
+			// JMP ? 
+			CompileBlock(Block);
+			int PostBlockOp = CurrFunc.Instructions.Count;
+
+			// Go back to LT and JMP, set numbers
+		}
 
 		// AST PARTS
 		VList CompileLeftVarList(ParseNode VarList) {
@@ -1069,8 +1087,10 @@ namespace Cheese
 					// '...' ???
 				} else if(Child.Type == ParseNode.EType.UN_OP_WRAP) {
 					Result.Add(CompileUnOp(Child, LVals, RVals));
-				} else if(Child.Type == ParseNode.EType.BIN_OP_WRAP) {
-					Result.Add(CompileBinOp(Child, LVals, RVals));
+				} else if(Child.Type == ParseNode.EType.MATH_BIN_OP_WRAP) {
+					Result.Add(CompileMathBinOp(Child, LVals, RVals));
+				} else if(Child.Type == ParseNode.EType.COMP_BIN_OP_WRAP) {
+					Result.Add(CompileCompBinOp(Child, LVals, RVals));
 				} else if(Child.Type == ParseNode.EType.PREFIX_EXP) {
 					// might be a var, might be a function call
 					Result.AddRange(CompilePrefixExp(Child, LVals, RVals));
@@ -1412,7 +1432,7 @@ namespace Cheese
 			return ConsReg;
 		}
 
-		Value CompileBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
+		Value CompileMathBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
 
 			ParseNode Left = BinOp.Children[0];
 			ParseNode Op = BinOp.Children[1];
@@ -1439,6 +1459,50 @@ namespace Cheese
 
 			Value LV = GetAsRegister(LVs[0]);
 			Value RV = GetAsRegister(RVs[0]);
+
+			FreeRegister(LV);
+			FreeRegister(RV);
+
+			//Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
+			Value Result = GetLRegorTReg(LVals, RVals);
+
+			CurrFunc.Instructions.Add(InstOp, Result.Index, LV.Index, RV.Index);
+
+			return Result;
+		}
+
+		Value CompileCompBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
+
+			ParseNode Left = BinOp.Children[0];
+			ParseNode Op = BinOp.Children[1];
+			ParseNode Right = BinOp.Children[2];
+
+
+			VList LVs = CompileExp(Left);
+			VList RVs = CompileExp(Right);
+
+
+			Instruction.OP InstOp = Instruction.OP.ERROR;
+			if(Op.Token.IsOperator("<"))
+				InstOp = Instruction.OP.LT;
+			else if(Op.Token.IsOperator("<="))
+				InstOp = Instruction.OP.LE;
+			else if(Op.Token.IsOperator(">"))
+				InstOp = Instruction.OP.LT;
+			else if(Op.Token.IsOperator("=="))
+				InstOp = Instruction.OP.EQ;
+			else if(Op.Token.IsOperator("~="))
+				InstOp = Instruction.OP.EQ;
+
+
+			Value LV = GetAsRegister(LVs[0]);
+			Value RV = GetAsRegister(RVs[0]);
+
+			if(Op.Token.IsOperator(">") || Op.Token.IsOperator(">=")) {
+				Value T = LV;
+				LV = RV;
+				RV = T;
+			}
 
 			FreeRegister(LV);
 			FreeRegister(RV);

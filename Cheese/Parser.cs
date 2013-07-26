@@ -12,9 +12,13 @@ namespace Cheese
 			ERROR,
 			TERMINAL,
 			UNOP,
-			BINOP,
+			MATH_BINOP,
+			COMP_BINOP,
+			LOGI_BINOP,
 			UN_OP_WRAP,
-			BIN_OP_WRAP,
+			MATH_BIN_OP_WRAP,
+			COMP_BIN_OP_WRAP,
+			LOGI_BIN_OP_WRAP,
 			FIELD_SEP,
 			FIELD,
 			FIELD_LIST,
@@ -136,9 +140,10 @@ namespace Cheese
 		Token Curr, Look, LookFar;
 
 		SortedSet<string> UnOps = new SortedSet<string>(){ "-", "not", "#" }, 
-		BinOps = new SortedSet<string>(){ "+", "-", "*", "/", "^", "%", "..", 
-			"<", "<=", ">", ">=", "==", "~=", "and", "or" },
-		FieldSeps = new SortedSet<string>(){ ",", ";" };
+			MathBinOps = new SortedSet<string>(){ "+", "-", "*", "/", "^", "%", ".." },
+			CompBinOps = new SortedSet<string>(){ "<", "<=", ">", ">=", "==", "~=" },
+			LogiBinOps = new SortedSet<string>(){ "and", "or" },
+			FieldSeps = new SortedSet<string>(){ ",", ";" };
 
 		public Parser(TextReader Reader) {
 			//this.Reader = Reader;
@@ -716,16 +721,35 @@ namespace Cheese
 				Exp.Add(UnOpWrap);
 			}
 
-			while (BinOps.Contains(Curr.Value)) {
-				ParseNode BinOpWrap = new ParseNode(ParseNode.EType.BIN_OP_WRAP);
-
-				BinOpWrap.Children = new List<ParseNode>(Exp.Children);
-				Exp.Children.Clear();
-				BinOpWrap.Add(ParseBinOp());
-				BinOpWrap.Add(ParseExp());
-
-				Exp.Add(BinOpWrap);
+			while (MathBinOps.Contains(Curr.Value) || 
+			       CompBinOps.Contains(Curr.Value) ||
+			       LogiBinOps.Contains(Curr.Value)) {
+				if(MathBinOps.Contains(Curr.Value)) {
+					ParseNode BinOpWrap = new ParseNode(ParseNode.EType.MATH_BIN_OP_WRAP);
+					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
+					Exp.Children.Clear();
+					BinOpWrap.Add(ParseMathBinOp());
+					BinOpWrap.Add(ParseExp());
+					Exp.Add(BinOpWrap);
+				}
+				else if(CompBinOps.Contains(Curr.Value)) {
+					ParseNode BinOpWrap = new ParseNode(ParseNode.EType.COMP_BIN_OP_WRAP);
+					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
+					Exp.Children.Clear();
+					BinOpWrap.Add(ParseCompBinOp());
+					BinOpWrap.Add(ParseExp());
+					Exp.Add(BinOpWrap);
+				}
+				else if(LogiBinOps.Contains(Curr.Value)) {
+					ParseNode BinOpWrap = new ParseNode(ParseNode.EType.LOGI_BIN_OP_WRAP);
+					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
+					Exp.Children.Clear();
+					BinOpWrap.Add(ParseLogiBinOp());
+					BinOpWrap.Add(ParseExp());
+					Exp.Add(BinOpWrap);
+				}
 			}
+
 
 			return Exp;
 		}
@@ -1064,18 +1088,48 @@ namespace Cheese
 			}
 		}
 
-		internal ParseNode ParseBinOp() {
+		internal ParseNode ParseMathBinOp() {
 			/*	binop : '+' | '-' | '*' | '/' | '^' | '%' | '..' | 
 		 			'<' | '<=' | '>' | '>=' | '==' | '~=' | 
 		 			'and' | 'or';
 			*/
-			if (BinOps.Contains(Curr.Value)) {
+			if (MathBinOps.Contains(Curr.Value)) {
 				ParseNode BinOp = new ParseNode(Curr);
-				BinOp.Type = ParseNode.EType.BINOP;
+				BinOp.Type = ParseNode.EType.MATH_BINOP;
 				Advance();
 				return BinOp;
 			} else {
-				throw new ParseException("binary operator", Curr);
+				throw new ParseException("math binary operator", Curr);
+			}
+		}
+
+		internal ParseNode ParseCompBinOp() {
+			/*	binop : '+' | '-' | '*' | '/' | '^' | '%' | '..' | 
+		 			'<' | '<=' | '>' | '>=' | '==' | '~=' | 
+		 			'and' | 'or';
+			*/
+			if (CompBinOps.Contains(Curr.Value)) {
+				ParseNode BinOp = new ParseNode(Curr);
+				BinOp.Type = ParseNode.EType.COMP_BINOP;
+				Advance();
+				return BinOp;
+			} else {
+				throw new ParseException("comparision binary operator", Curr);
+			}
+		}
+
+		internal ParseNode ParseLogiBinOp() {
+			/*	binop : '+' | '-' | '*' | '/' | '^' | '%' | '..' | 
+		 			'<' | '<=' | '>' | '>=' | '==' | '~=' | 
+		 			'and' | 'or';
+			*/
+			if (LogiBinOps.Contains(Curr.Value)) {
+				ParseNode BinOp = new ParseNode(Curr);
+				BinOp.Type = ParseNode.EType.LOGI_BINOP;
+				Advance();
+				return BinOp;
+			} else {
+				throw new ParseException("logical binary operator", Curr);
 			}
 		}
 
