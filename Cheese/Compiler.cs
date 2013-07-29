@@ -880,10 +880,20 @@ namespace Cheese
 			int PreExpOp = CurrFunc.Instructions.Count;
 			VList ExpVs = CompileExp(Exp);
 			int PostExpOp = CurrFunc.Instructions.Count;
-			// LT ? LE?
-			// JMP ? 
+			Value ExpV = ExpVs[0];
+			if(ExpVs == null) {
+				; // do nothing
+			} else {
+				// else, check ExpVs for true/false
+
+			}
 			CompileBlock(Block);
+			// if there are else's, add a jump here
 			int PostBlockOp = CurrFunc.Instructions.Count;
+
+
+			int SkipJumpDist = PostBlockOp - PostExpOp;
+			CurrFunc.Instructions[PostExpOp - 1].A = SkipJumpDist;
 
 			// Go back to LT and JMP, set numbers
 		}
@@ -1529,15 +1539,16 @@ namespace Cheese
 
 			if(LReg == null) {
 
-				return LReg;
+
 			} else if(LReg != null) {
+				Console.WriteLine(" CBO: LReg: {0}", LReg.ToString());
 				Value TReg = GetUnclaimedReg();
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 0, 1); // skip next 
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 1, 0);
 				EmitFromRegisterOp(LReg, TReg);
-				return LReg;
 			}
 
+			return LReg;
 		}
 
 		Value CompileUnOp(ParseNode UnOp, VList LVals = null, VList RVals = null) {
