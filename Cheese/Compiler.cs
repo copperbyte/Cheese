@@ -1472,6 +1472,9 @@ namespace Cheese
 		}
 
 		Value CompileCompBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
+			//  EQ A B C if ((RK(B) == RK(C)) ~= A) then PC++
+			//  LT A B C if ((RK(B) <  RK(C)) ~= A) then PC++
+			//  LE A B C if ((RK(B) <= RK(C)) ~= A) then PC++
 
 			ParseNode Left = BinOp.Children[0];
 			ParseNode Op = BinOp.Children[1];
@@ -1489,6 +1492,8 @@ namespace Cheese
 				InstOp = Instruction.OP.LE;
 			else if(Op.Token.IsOperator(">"))
 				InstOp = Instruction.OP.LT;
+			else if(Op.Token.IsOperator(">="))
+				InstOp = Instruction.OP.LE;
 			else if(Op.Token.IsOperator("=="))
 				InstOp = Instruction.OP.EQ;
 			else if(Op.Token.IsOperator("~="))
@@ -1498,21 +1503,41 @@ namespace Cheese
 			Value LV = GetAsRegister(LVs[0]);
 			Value RV = GetAsRegister(RVs[0]);
 
+			int CompValue = 0;
+
 			if(Op.Token.IsOperator(">") || Op.Token.IsOperator(">=")) {
 				Value T = LV;
 				LV = RV;
 				RV = T;
+			}
+			if(Op.Token.IsOperator("~=")) {
+				CompValue = 1;
 			}
 
 			FreeRegister(LV);
 			FreeRegister(RV);
 
 			//Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
-			Value Result = GetLRegorTReg(LVals, RVals);
+			//Value Result = GetLRegorTReg(LVals, RVals);
 
-			CurrFunc.Instructions.Add(InstOp, Result.Index, LV.Index, RV.Index);
+			Value LReg = GetLReg(LVals, RVals);
 
-			return Result;
+			CurrFunc.Instructions.Add(InstOp, CompValue, LV.Index, RV.Index);
+
+			int JumpDist = 1; // this is going to get over-written in the If/Loop work
+			CurrFunc.Instructions.Add(Instruction.OP.JMP, JumpDist);
+
+			if(LReg == null) {
+
+				return LReg;
+			} else if(LReg != null) {
+				Value TReg = GetUnclaimedReg();
+				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 0, 1); // skip next 
+				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 1, 0);
+				EmitFromRegisterOp(LReg, TReg);
+				return LReg;
+			}
+
 		}
 
 		Value CompileUnOp(ParseNode UnOp, VList LVals = null, VList RVals = null) {
