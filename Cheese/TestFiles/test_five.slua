@@ -1,27 +1,35 @@
 --Super Simple Test Five
 
-q = 4;
-u = 7;
-b = q <= u;
-print("b: ",b);
+
+function assign_comp()
+  q = 4;
+  u = 7;
+  b = q <= u;
+  print("b: ",b);
+end
 
 ----
 
-n = 12
-
-if n > 15 then
-  print("the number is > 15")
-elseif n > 10 then
-  print("the number is > 10")
-elseif n > 5 then
-  print("the number is > 5")
-else
-  print("the number is <= 5")
+function if_else_if() 
+  n = 12
+  if n > 15 then
+    print("the number is > 15")
+  elseif n > 10 then
+    print("the number is > 10") 
+  elseif n > 5 then
+    print("the number is > 5")
+  else
+    print("the number is <= 5")
+  end
 end
 
+---
 
-if n == 15 then
-  print("the number is == 15")
-elseif n ~= 15 then
-  print("the number is ~= 15")
+function eq_ne()
+  n = 12
+  if n == 15 then
+    print("the number is == 15")
+  elseif n ~= 15 then
+    print("the number is ~= 15")
+  end
 end
