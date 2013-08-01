@@ -127,6 +127,9 @@ namespace Cheese
 		internal bool IsConstant { 
 			get { return Loc == ELoc.CONSTANT; }
 		}
+		internal bool IsRegisterOrConstant {
+			get { return (IsRegister || IsConstant); }
+		}
 
 		public Value(int Index=0, ELoc Loc=ELoc.REGISTER, ESide Side=ESide.RIGHT, Value Key=null) {
 			this.Index = Index; 
@@ -1510,8 +1513,12 @@ namespace Cheese
 				InstOp = Instruction.OP.EQ;
 
 
-			Value LV = GetAsRegister(LVs[0]);
-			Value RV = GetAsRegister(RVs[0]);
+			Value LV = LVs[0], RV = RVs[0];
+
+			if(!LV.IsRegisterOrConstant || LV.IsTable)
+				LV = GetAsRegister(LV);
+			if(!RV.IsRegisterOrConstant || RV.IsTable)
+				RV = GetAsRegister(RV);
 
 			int CompValue = 0;
 
@@ -1530,25 +1537,30 @@ namespace Cheese
 			//Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 			//Value Result = GetLRegorTReg(LVals, RVals);
 
-			Value LReg = GetLReg(LVals, RVals);
+			Value DestVal = null;
+			if(LVals != null && RVals != null && LVals.Count > RVals.Count) {
+				DestVal = LVals[RVals.Count];
+				CompValue = 1;
+			}
 
-			CurrFunc.Instructions.Add(InstOp, CompValue, LV.Index, RV.Index);
+
 
 			int JumpDist = 1; // this is going to get over-written in the If/Loop work
-			CurrFunc.Instructions.Add(Instruction.OP.JMP, JumpDist);
+			CurrFunc.Instructions.Add(InstOp, CompValue, LV.Index, LV.IsConstant, RV.Index, RV.IsConstant);
+			CurrFunc.Instructions.Add(Instruction.OP.JMP, JumpDist);	
 
-			if(LReg == null) {
 
+			if(DestVal == null) {
 
-			} else if(LReg != null) {
-				Console.WriteLine(" CBO: LReg: {0}", LReg.ToString());
+			} else if(DestVal != null) {
+				Console.WriteLine(" CBO: LReg: {0}", DestVal.ToString());
 				Value TReg = GetUnclaimedReg();
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 0, 1); // skip next 
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 1, 0);
-				EmitFromRegisterOp(LReg, TReg);
+				EmitFromRegisterOp(DestVal, TReg);
 			}
 
-			return LReg;
+			return DestVal;
 		}
 
 		Value CompileUnOp(ParseNode UnOp, VList LVals = null, VList RVals = null) {
