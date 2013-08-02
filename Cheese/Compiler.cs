@@ -196,15 +196,15 @@ namespace Cheese
 		internal void PrintConstants() {
 			foreach(ConstEntry Const in ConstantTable) {
 				if(Const.StringVal != null)
-					Console.WriteLine("CS  {0} := {1}", Const.Value.Index, Const.StringVal);
+					Console.WriteLine("CS  {0:00} := {1}", Const.Value.Index, Const.StringVal);
 				else
-					Console.WriteLine("CN  {0} := {1}", Const.Value.Index, Const.NumberVal);
+					Console.WriteLine("CN  {0:00} := {1}", Const.Value.Index, Const.NumberVal);
 			}
 		}
 
 		internal void PrintLocals() {
 			foreach(LocalEntry Local in LocalTable) {
-				Console.WriteLine("LV  {0} := {1}", Local.Value.Index, Local.Name);
+				Console.WriteLine("LV  {0:00} := {1}", Local.Value.Index, Local.Name);
 			}
 		}
 
