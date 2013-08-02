@@ -209,11 +209,15 @@ namespace Cheese
 		}
 
 		internal void PrintInstructions() {
+			int Counter = 0;
 			foreach(Instruction Inst in Instructions) {
-				Console.WriteLine("IC  {0}\t{1}  {2}  {3}", Inst.Code, 
+				Console.WriteLine("{0:000} IC  {1}\t{2}  {3}  {4}", 
+				                  Counter,
+				                  Inst.Code, 
 				                  (Inst.isA?Inst.A.ToString():""), 
 				                  (Inst.isB?(Inst.rkB?(Inst.B+256):Inst.B).ToString():""), 
 				                  (Inst.isC?(Inst.rkC?(Inst.C+256):Inst.C).ToString():""));
+				Counter++;
 			}
 		}
 	}
@@ -876,29 +880,71 @@ namespace Cheese
 
 		void CompileIfStmt(ParseNode IfStatement) {
 			// 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end' |
-			ParseNode Exp = IfStatement.Children[1];
-			//VList RetVs = CompileExpList(ExpList);
-			ParseNode Block = IfStatement.Children[3];
 
-			int PreExpOp = CurrFunc.Instructions.Count;
-			VList ExpVs = CompileExp(Exp);
-			int PostExpOp = CurrFunc.Instructions.Count;
-			Value ExpV = ExpVs[0];
-			if(ExpVs == null) {
-				; // do nothing
-			} else {
-				// else, check ExpVs for true/false
+			List<int> JumpStartOps = new List<int>();
+			List<int> JumpNextOps = new List<int>();
+			List<int> JumpEndOps = new List<int>();
 
+			int ChildIndex = 0;
+			int EndOpPos = 0;
+
+			// Generator Ops
+			while(ChildIndex < IfStatement.Children.Count) {
+				ParseNode Exp=null, Block=null;
+
+				if(IfStatement.Children[ChildIndex].Token.IsKeyword("if") ||
+					IfStatement.Children[ChildIndex].Token.IsKeyword("elseif")) {
+					Exp = IfStatement.Children[ChildIndex + 1];
+					Block = IfStatement.Children[ChildIndex + 3];
+				} else if(IfStatement.Children[ChildIndex].Token.IsKeyword("else")) {
+					Exp = null;
+					Block = IfStatement.Children[ChildIndex + 1];
+				} else if(IfStatement.Children[ChildIndex].Token.IsKeyword("end")) {
+					EndOpPos = CurrFunc.Instructions.Count;
+					break;
+				}
+
+				JumpStartOps.Add(CurrFunc.Instructions.Count);
+				VList ExpVs = null;
+				if(Exp != null) 
+					ExpVs = CompileExp(Exp);
+				JumpNextOps.Add(CurrFunc.Instructions.Count);
+
+				if(ExpVs != null) {
+					Value ExpV = ExpVs[0];
+					if(ExpVs == null) {
+						; // do nothing
+					} else {
+						// else, check ExpVs for true/false
+					}
+				}
+
+				CompileBlock(Block);
+				// if there are else's, add a jump here
+				if(ChildIndex + 4 < IfStatement.Children.Count) {
+					CurrFunc.Instructions.Add(Instruction.OP.JMP, 1);
+					JumpEndOps.Add(CurrFunc.Instructions.Count);
+				} else {
+					EndOpPos = CurrFunc.Instructions.Count;
+				}
+
+				ChildIndex += 4;
 			}
-			CompileBlock(Block);
-			// if there are else's, add a jump here
-			int PostBlockOp = CurrFunc.Instructions.Count;
 
+			// Fix the JMPs
+			for(int i = 0; i < JumpNextOps.Count; i++) {
+				if(i == JumpNextOps.Count - 1) {
+					CurrFunc.Instructions[JumpNextOps[0] - 1].A = EndOpPos - JumpNextOps[i];
+				} else {
+					int SkipJumpDist = JumpStartOps[i+1] - JumpNextOps[i];
+					CurrFunc.Instructions[JumpNextOps[0] - 1].A = SkipJumpDist;
+				}
+			}
+			for(int i = 0; i < JumpEndOps.Count; i++) {
+				int SkipJumpDist = EndOpPos - JumpEndOps[i];
+				CurrFunc.Instructions[JumpEndOps[i] - 1].A = SkipJumpDist;
+			}
 
-			int SkipJumpDist = PostBlockOp - PostExpOp;
-			CurrFunc.Instructions[PostExpOp - 1].A = SkipJumpDist;
-
-			// Go back to LT and JMP, set numbers
 		}
 
 		// AST PARTS
