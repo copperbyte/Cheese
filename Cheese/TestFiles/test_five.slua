@@ -33,3 +33,20 @@ function eq_ne()
     print("the number is ~= 15")
   end
 end
+
+---
+
+function non_comp_if()
+  n = 13
+  if n then
+    print(" n 1 is true");
+  end
+  
+  n = nil
+  if n then
+    print(" n 2 is true");
+  end
+
+end
+
+----
