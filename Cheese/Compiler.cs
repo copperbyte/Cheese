@@ -905,10 +905,12 @@ namespace Cheese
 				}
 
 				JumpStartOps.Add(CurrFunc.Instructions.Count);
+				Console.WriteLine("START  : {0} ", CurrFunc.Instructions.Count);
 				VList ExpVs = null;
 				if(Exp != null) 
 					ExpVs = CompileExp(Exp);
-				JumpNextOps.Add(CurrFunc.Instructions.Count);
+				JumpNextOps.Add(CurrFunc.Instructions.Count-1);
+				Console.WriteLine("NEXT   : {0} ", CurrFunc.Instructions.Count-1);
 
 				if(ExpVs != null) {
 					Value ExpV = ExpVs[0];
@@ -921,12 +923,13 @@ namespace Cheese
 
 				CompileBlock(Block);
 				// if there are else's, add a jump here
-				if(ChildIndex + 4 < IfStatement.Children.Count) {
-					CurrFunc.Instructions.Add(Instruction.OP.JMP, 1);
-					JumpEndOps.Add(CurrFunc.Instructions.Count);
+				if(ChildIndex + 4 + 3 /*else block end*/  < IfStatement.Children.Count) {
+					CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
+					JumpEndOps.Add(CurrFunc.Instructions.Count-1);
 				} else {
 					EndOpPos = CurrFunc.Instructions.Count;
 				}
+				Console.WriteLine("JEND   : {0} ", CurrFunc.Instructions.Count-1);
 
 				ChildIndex += 4;
 			}
@@ -934,15 +937,21 @@ namespace Cheese
 			// Fix the JMPs
 			for(int i = 0; i < JumpNextOps.Count; i++) {
 				if(i == JumpNextOps.Count - 1) {
-					CurrFunc.Instructions[JumpNextOps[0] - 1].A = EndOpPos - JumpNextOps[i];
+					CurrFunc.Instructions[JumpNextOps[i]].A = (EndOpPos - JumpNextOps[i])-1;
+					Console.WriteLine("JNEXT IS JUMP TO END {0} - {1} = {2}",
+					                  EndOpPos, JumpNextOps[i], (EndOpPos - JumpNextOps[i])-1);
 				} else {
-					int SkipJumpDist = JumpStartOps[i+1] - JumpNextOps[i];
-					CurrFunc.Instructions[JumpNextOps[0] - 1].A = SkipJumpDist;
+					int SkipJumpDist = (JumpStartOps[i+1] - JumpNextOps[i])-1;
+					CurrFunc.Instructions[JumpNextOps[i]].A = SkipJumpDist;
+					Console.WriteLine("JNEXT  {0} - {1} = {2}",
+					                  JumpStartOps[i+1], JumpNextOps[i], SkipJumpDist);
 				}
 			}
 			for(int i = 0; i < JumpEndOps.Count; i++) {
-				int SkipJumpDist = EndOpPos - JumpEndOps[i];
-				CurrFunc.Instructions[JumpEndOps[i] - 1].A = SkipJumpDist;
+				int SkipJumpDist = (EndOpPos - JumpEndOps[i])-1;
+				CurrFunc.Instructions[JumpEndOps[i]].A = SkipJumpDist;
+				Console.WriteLine("JEND  {0} - {1} = {2}",
+				                  EndOpPos, JumpEndOps[i], SkipJumpDist);
 			}
 
 		}
@@ -1591,14 +1600,15 @@ namespace Cheese
 
 
 
-			int JumpDist = 1; // this is going to get over-written in the If/Loop work
+			//int JumpDist = 0; // this is going to get over-written in the If/Loop work
 			CurrFunc.Instructions.Add(InstOp, CompValue, LV.Index, LV.IsConstant, RV.Index, RV.IsConstant);
-			CurrFunc.Instructions.Add(Instruction.OP.JMP, JumpDist);	
+				
 
 
 			if(DestVal == null) {
-
+				CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
 			} else if(DestVal != null) {
+				CurrFunc.Instructions.Add(Instruction.OP.JMP, 1);
 				Console.WriteLine(" CBO: LReg: {0}", DestVal.ToString());
 				Value TReg = GetUnclaimedReg();
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 0, 1); // skip next 
