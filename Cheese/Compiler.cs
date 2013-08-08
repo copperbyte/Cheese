@@ -909,19 +909,30 @@ namespace Cheese
 				VList ExpVs = null;
 				if(Exp != null) 
 					ExpVs = CompileExp(Exp);
-				JumpNextOps.Add(CurrFunc.Instructions.Count-1);
-				Console.WriteLine("NEXT   : {0} ", CurrFunc.Instructions.Count-1);
+
 
 				if(ExpVs != null) {
 					Value ExpV = ExpVs[0];
-					if(ExpVs == null) {
+					if(ExpV == null) {
 						; // do nothing
 					} else {
 						// else, check ExpVs for true/false
+						if(!(ExpV.IsRegister && !ExpV.IsTable)) {
+							Value UR = GetUnclaimedReg();
+							EmitToRegisterOp(UR, ExpV);
+							ClaimRegister(UR);
+							ExpV = UR;
+						}
+						FreeRegister(ExpV);
+						CurrFunc.Instructions.Add(Instruction.OP.TEST, ExpV.Index, -1, 0);
+						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
 					}
 				}
+				JumpNextOps.Add(CurrFunc.Instructions.Count-1);
+				Console.WriteLine("NEXT   : {0} ", CurrFunc.Instructions.Count-1);				
 
 				CompileBlock(Block);
+
 				// if there are else's, add a jump here
 				if(ChildIndex + 4 + 3 /*else block end*/  < IfStatement.Children.Count) {
 					CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
