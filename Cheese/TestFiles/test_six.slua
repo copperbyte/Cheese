@@ -10,3 +10,6 @@ function while_loop()
 end
 
 ----
+
+
+while_loop();

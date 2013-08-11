@@ -20,7 +20,9 @@ namespace Cheese
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_two.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_three.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_four.slua",FileMode.Open);
-			FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_five.slua",FileMode.Open);
+			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_five.slua",FileMode.Open);
+			FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_six.slua",FileMode.Open);
+
 
 
 			StreamReader TestFileReader = new StreamReader(TestFile);
