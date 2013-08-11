@@ -706,6 +706,8 @@ namespace Cheese
 					CompileFunctionStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.IF_STAT) 
 					CompileIfStmt(Statement);
+				else if(Statement.Type == ParseNode.EType.WHILE_STAT) 
+					CompileWhileStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
 					CompileLocalAssignStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.RETURN_STAT) 
@@ -966,6 +968,72 @@ namespace Cheese
 			}
 
 		}
+
+		void CompileWhileStmt(ParseNode WhileStatement) {
+			// 'while' exp 'do' block 'end' | 
+
+
+			int StartOp = CurrFunc.Instructions.Count;
+			int ExpFailOp = 0;
+			int EndOp = 0;
+
+			ParseNode Exp=null, Block=null;
+
+			Exp = WhileStatement.Children[1];
+			Block = WhileStatement.Children[3];
+
+
+			Console.WriteLine("W-START  : {0} ", CurrFunc.Instructions.Count);
+
+			{{
+				VList ExpVs = null;
+				if(Exp != null) 
+					ExpVs = CompileExp(Exp);
+
+
+				if(ExpVs != null) {
+					Value ExpV = ExpVs[0];
+					if(ExpV == null) {
+						; // do nothing
+					} else {
+						// else, check ExpVs for true/false
+						if(!(ExpV.IsRegister && !ExpV.IsTable)) {
+							Value UR = GetUnclaimedReg();
+							EmitToRegisterOp(UR, ExpV);
+							ClaimRegister(UR);
+							ExpV = UR;
+						}
+						FreeRegister(ExpV);
+						CurrFunc.Instructions.Add(Instruction.OP.TEST, ExpV.Index, -1, 0);
+						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
+					}
+				}
+			}}
+
+			ExpFailOp = CurrFunc.Instructions.Count-1;
+			Console.WriteLine("W-FAIL   : {0} ", ExpFailOp);				
+
+			CompileBlock(Block);
+
+			CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
+			EndOp = CurrFunc.Instructions.Count-1;
+				
+			Console.WriteLine("W-END   : {0} ", CurrFunc.Instructions.Count-1);
+
+
+			// Fix the JMPs
+			CurrFunc.Instructions[ExpFailOp].A = (EndOp - ExpFailOp)-1;
+			Console.WriteLine("W-OUT IS JUMP TO END {0} - {1} = {2}",
+			                  EndOp, ExpFailOp, (EndOp - ExpFailOp)-1);
+
+							
+			CurrFunc.Instructions[EndOp].A = (StartOp - EndOp);
+			Console.WriteLine("W-LOOP  {0} - {1} = {2}",
+			                  StartOp, EndOp, (StartOp - EndOp));
+
+		}
+
+
 
 		// AST PARTS
 		VList CompileLeftVarList(ParseNode VarList) {
