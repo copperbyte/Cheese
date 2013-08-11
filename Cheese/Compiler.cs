@@ -1022,14 +1022,14 @@ namespace Cheese
 
 
 			// Fix the JMPs
-			CurrFunc.Instructions[ExpFailOp].A = (EndOp - ExpFailOp)-1;
+			CurrFunc.Instructions[ExpFailOp].A = (EndOp - ExpFailOp);
 			Console.WriteLine("W-OUT IS JUMP TO END {0} - {1} = {2}",
-			                  EndOp, ExpFailOp, (EndOp - ExpFailOp)-1);
+			                  EndOp, ExpFailOp, (EndOp - ExpFailOp));
 
 							
-			CurrFunc.Instructions[EndOp].A = (StartOp - EndOp);
+			CurrFunc.Instructions[EndOp].A = (StartOp - EndOp)-1;
 			Console.WriteLine("W-LOOP  {0} - {1} = {2}",
-			                  StartOp, EndOp, (StartOp - EndOp));
+			                  StartOp, EndOp, (StartOp - EndOp)-1);
 
 		}
 
@@ -1325,7 +1325,7 @@ namespace Cheese
 				// Claim ArgRegs
 				ClaimStackFrame(ArgRegs);
 
-				CurrFunc.Instructions.Add(Instruction.OP.CALL, FuncVal.Index, ArgVs.Count+1, RetCount+1);
+				CurrFunc.Instructions.Add(Instruction.OP.CALL, FuncVal.Index, ArgCount+1, RetCount+1);
 				// Add return regs to Result?
 				for(int i = 0; i < RetCount; i++)
 					Result.Add(StackSpace[i]);
@@ -1604,8 +1604,17 @@ namespace Cheese
 			else if(Op.Token.IsOperator("%"))
 				InstOp = Instruction.OP.MOD;
 
-			Value LV = GetAsRegister(LVs[0]);
-			Value RV = GetAsRegister(RVs[0]);
+
+			// FIXME: Handle input values as Reg-or-Consts
+
+			Value LV = LVs[0];
+			Value RV = RVs[0];
+			
+			if(!LV.IsRegisterOrConstant || LV.IsTable)
+				LV = GetAsRegister(LV);
+			if(!RV.IsRegisterOrConstant || RV.IsTable)
+				RV = GetAsRegister(RV);
+
 
 			FreeRegister(LV);
 			FreeRegister(RV);
@@ -1613,7 +1622,7 @@ namespace Cheese
 			//Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 			Value Result = GetLRegorTReg(LVals, RVals);
 
-			CurrFunc.Instructions.Add(InstOp, Result.Index, LV.Index, RV.Index);
+			CurrFunc.Instructions.Add(InstOp, Result.Index, LV.Index, LV.IsConstant, RV.Index, RV.IsConstant);
 
 			return Result;
 		}
