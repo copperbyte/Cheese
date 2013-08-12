@@ -708,6 +708,8 @@ namespace Cheese
 					CompileIfStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.WHILE_STAT) 
 					CompileWhileStmt(Statement);
+				else if(Statement.Type == ParseNode.EType.REPEAT_STAT)
+					CompileRepeatStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
 					CompileLocalAssignStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.RETURN_STAT) 
@@ -1033,6 +1035,58 @@ namespace Cheese
 
 		}
 
+
+		void CompileRepeatStmt(ParseNode RepeatStatement) {
+			// 'repeat' block 'until' exp | 
+
+			int StartOp = CurrFunc.Instructions.Count;
+			int EndOp = 0;
+
+			ParseNode Exp=null, Block=null;
+
+			Exp = RepeatStatement.Children[3];
+			Block = RepeatStatement.Children[1];
+
+
+			Console.WriteLine("R-START  : {0} ", StartOp);
+
+			CompileBlock(Block);
+
+			{{
+					VList ExpVs = null;
+					if(Exp != null) 
+						ExpVs = CompileExp(Exp);
+
+
+					if(ExpVs != null) {
+						Value ExpV = ExpVs[0];
+						if(ExpV == null) {
+							; // do nothing
+						} else {
+							// else, check ExpVs for true/false
+							if(!(ExpV.IsRegister && !ExpV.IsTable)) {
+								Value UR = GetUnclaimedReg();
+								EmitToRegisterOp(UR, ExpV);
+								ClaimRegister(UR);
+								ExpV = UR;
+							}
+							FreeRegister(ExpV);
+							CurrFunc.Instructions.Add(Instruction.OP.TEST, ExpV.Index, -1, 0);
+							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
+						}
+					}
+			}}
+
+			EndOp = CurrFunc.Instructions.Count-1;
+
+			Console.WriteLine("R-END   : {0} ", EndOp);
+
+
+			// Fix the JMPs
+			CurrFunc.Instructions[EndOp].A = (StartOp - EndOp)-1;
+			Console.WriteLine("R-LOOP  {0} - {1} = {2}",
+			                  StartOp, EndOp, (StartOp - EndOp)-1);
+		}
 
 
 		// AST PARTS
