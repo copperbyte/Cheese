@@ -1119,36 +1119,43 @@ namespace Cheese
 
 			// Assign values to the loop vals
 
+			EmitAssignOp(IndexVal, CompileSingularExp(InitExp, IndexVal));	
+            FinalizeLocal(IndexVal);
 
-			int StartOp = CurrFunc.Instructions.Count;
-			int ExpFailOp = 0;
-			int EndOp = 0;
+			EmitAssignOp(LimitVal, CompileSingularExp(EndExp, LimitVal));
+			FinalizeLocal(LimitVal);
+
+			if(StepExp == null) {
+				Value DefaultOne = GetConstIndex(1.0);
+				EmitAssignOp(StepVal, DefaultOne);
+			} else {
+				EmitAssignOp(StepVal, CompileSingularExp(StepExp, StepVal));
+			}
+			FinalizeLocal(StepVal);
+
+			FinalizeLocal(VisableValue);
+
+			int PrepOp = CurrFunc.Instructions.Count;
+			int LoopOp = 0;
 
 
-			Console.WriteLine("FN-START  : {0} ", StartOp);
-			// FORPREP
-
-
-			ExpFailOp = CurrFunc.Instructions.Count-1;
-			Console.WriteLine("W-FAIL   : {0} ", ExpFailOp);				
+			Console.WriteLine("FN-PREP  : {0} ", PrepOp);
+			CurrFunc.Instructions.Add(Instruction.OP.FORPREP, IndexVal.Index, 0);
 
 			CompileBlock(Block);
 
-			CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
-			EndOp = CurrFunc.Instructions.Count-1;
-
-			Console.WriteLine("W-END   : {0} ", CurrFunc.Instructions.Count-1);
-			// FORTEST
+			LoopOp = CurrFunc.Instructions.Count;
+			CurrFunc.Instructions.Add(Instruction.OP.FORLOOP, IndexVal.Index, 0);
+			Console.WriteLine("FN-END   : {0} ", LoopOp);
 
 			// Fix the JMPs
-			CurrFunc.Instructions[ExpFailOp].A = (EndOp - ExpFailOp);
-			Console.WriteLine("W-OUT IS JUMP TO END {0} - {1} = {2}",
-			                  EndOp, ExpFailOp, (EndOp - ExpFailOp));
+			CurrFunc.Instructions[PrepOp].B = (LoopOp - PrepOp)-1;
+			Console.WriteLine("FN-OUT IS JUMP TO END {0} - {1} = {2}",
+			                  LoopOp, PrepOp, (LoopOp - PrepOp)-1);
 
-
-			CurrFunc.Instructions[EndOp].A = (StartOp - EndOp)-1;
-			Console.WriteLine("W-LOOP  {0} - {1} = {2}",
-			                  StartOp, EndOp, (StartOp - EndOp)-1);
+			CurrFunc.Instructions[LoopOp].B = (PrepOp - LoopOp);
+			Console.WriteLine("FN-LOOP  {0} - {1} = {2}",
+			                  PrepOp, LoopOp, (PrepOp - LoopOp));
 
 		}
 
@@ -1367,6 +1374,25 @@ namespace Cheese
 
 			return Result;
 		}
+
+		Value CompileSingularExp(ParseNode Exp, Value LVal) {
+			VList LVals = null;
+			if(LVal != null) {
+				LVals = new VList();
+				LVals.Add(LVal);
+			}
+
+			VList Results = null;
+			Results = CompileExp(Exp, LVals);
+
+			if(Results == null)
+				return null;
+			else if(Results.Count == 0) 
+				return null;
+			else
+				return Results[0];
+		}
+
 
 		VList CompilePrefixExp(ParseNode PrefixExp, VList LVals=null, VList RVals=null) {
 			// prefixexp: varOrExp nameAndArgs*;
