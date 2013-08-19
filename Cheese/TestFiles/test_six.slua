@@ -21,6 +21,16 @@ end
 
 ----
 
+function for_num_loop()
+  for i = 1, 100, 8 do
+    print(i)
+  end  
+end
+
+----
+
+
 
 while_loop();
 repeat_loop();
+for_num_loop();
