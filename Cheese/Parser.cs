@@ -389,7 +389,7 @@ namespace Cheese
 			// 'for' NAME '=' exp ',' exp (',' exp)? 'do' block 'end' | 
 			// 'for' namelist 'in' explist1 'do' block 'end' | 
 
-			if(Look.IsOperator("=")) {
+			if(LookFar.IsOperator("=")) {
 				ParseNode For = new ParseNode(ParseNode.EType.FOR_NUM_STAT);
 				Match("for", For);			
 
@@ -414,7 +414,7 @@ namespace Cheese
 
 				return For;
 			}  // numerical 
-			else if(Look.IsOperator(",") || Look.IsKeyword("in")) {
+			else if(LookFar.IsOperator(",") || LookFar.IsKeyword("in")) {
 				ParseNode For = new ParseNode(ParseNode.EType.FOR_ITER_STAT);
 				Match("for", For);			
 
