@@ -710,6 +710,8 @@ namespace Cheese
 					CompileWhileStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.REPEAT_STAT)
 					CompileRepeatStmt(Statement);
+				else if(Statement.Type == ParseNode.EType.FOR_NUM_STAT)
+					CompileForNumericalStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
 					CompileLocalAssignStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.RETURN_STAT) 
@@ -971,6 +973,7 @@ namespace Cheese
 
 		}
 
+
 		void CompileWhileStmt(ParseNode WhileStatement) {
 			// 'while' exp 'do' block 'end' | 
 
@@ -1087,6 +1090,82 @@ namespace Cheese
 			Console.WriteLine("R-LOOP  {0} - {1} = {2}",
 			                  StartOp, EndOp, (StartOp - EndOp)-1);
 		}
+
+
+		void CompileForNumericalStmt(ParseNode ForStatement) {
+			// 'for' NAME '=' exp ',' exp (',' exp)? 'do' block 'end' |  
+
+			ParseNode VarName = null, 
+			          InitExp = null, EndExp = null, StepExp = null, 
+			          Block = null; 
+
+			VarName = ForStatement.Children[1];
+			InitExp = ForStatement.Children[3];
+			EndExp  = ForStatement.Children[5];
+			if(ForStatement.Children[6].Token.IsOperator(",")) {
+				StepExp = ForStatement.Children[7];
+				Block = ForStatement.Children[9];
+			} else {
+				StepExp = null;
+				Block = ForStatement.Children[7];
+			}
+
+
+			int StartOp = CurrFunc.Instructions.Count;
+			int ExpFailOp = 0;
+			int EndOp = 0;
+
+
+			Console.WriteLine("FN-START  : {0} ", StartOp);
+
+			{{
+					VList ExpVs = null;
+					if(Exp != null) 
+						ExpVs = CompileExp(Exp);
+
+
+					if(ExpVs != null) {
+						Value ExpV = ExpVs[0];
+						if(ExpV == null) {
+							; // do nothing
+						} else {
+							// else, check ExpVs for true/false
+							if(!(ExpV.IsRegister && !ExpV.IsTable)) {
+								Value UR = GetUnclaimedReg();
+								EmitToRegisterOp(UR, ExpV);
+								ClaimRegister(UR);
+								ExpV = UR;
+							}
+							FreeRegister(ExpV);
+							CurrFunc.Instructions.Add(Instruction.OP.TEST, ExpV.Index, -1, 0);
+							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
+						}
+					}
+				}}
+
+			ExpFailOp = CurrFunc.Instructions.Count-1;
+			Console.WriteLine("W-FAIL   : {0} ", ExpFailOp);				
+
+			CompileBlock(Block);
+
+			CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
+			EndOp = CurrFunc.Instructions.Count-1;
+
+			Console.WriteLine("W-END   : {0} ", CurrFunc.Instructions.Count-1);
+
+
+			// Fix the JMPs
+			CurrFunc.Instructions[ExpFailOp].A = (EndOp - ExpFailOp);
+			Console.WriteLine("W-OUT IS JUMP TO END {0} - {1} = {2}",
+			                  EndOp, ExpFailOp, (EndOp - ExpFailOp));
+
+
+			CurrFunc.Instructions[EndOp].A = (StartOp - EndOp)-1;
+			Console.WriteLine("W-LOOP  {0} - {1} = {2}",
+			                  StartOp, EndOp, (StartOp - EndOp)-1);
+
+		}
+
 
 
 		// AST PARTS
