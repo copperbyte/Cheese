@@ -1110,6 +1110,15 @@ namespace Cheese
 				Block = ForStatement.Children[7];
 			}
 
+			// Alloocate 4 Locals in a row.
+			Value IndexVal, LimitVal, StepVal, VisableValue;
+			IndexVal = GetLocalIndex("(for index)");
+			LimitVal = GetLocalIndex("(for limit)");
+			StepVal = GetLocalIndex("(for step)");
+			VisableValue = GetLocalIndex(VarName.Token.Value);
+
+			// Assign values to the loop vals
+
 
 			int StartOp = CurrFunc.Instructions.Count;
 			int ExpFailOp = 0;
@@ -1117,31 +1126,8 @@ namespace Cheese
 
 
 			Console.WriteLine("FN-START  : {0} ", StartOp);
+			// FORPREP
 
-			{{
-					VList ExpVs = null;
-					if(Exp != null) 
-						ExpVs = CompileExp(Exp);
-
-
-					if(ExpVs != null) {
-						Value ExpV = ExpVs[0];
-						if(ExpV == null) {
-							; // do nothing
-						} else {
-							// else, check ExpVs for true/false
-							if(!(ExpV.IsRegister && !ExpV.IsTable)) {
-								Value UR = GetUnclaimedReg();
-								EmitToRegisterOp(UR, ExpV);
-								ClaimRegister(UR);
-								ExpV = UR;
-							}
-							FreeRegister(ExpV);
-							CurrFunc.Instructions.Add(Instruction.OP.TEST, ExpV.Index, -1, 0);
-							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
-						}
-					}
-				}}
 
 			ExpFailOp = CurrFunc.Instructions.Count-1;
 			Console.WriteLine("W-FAIL   : {0} ", ExpFailOp);				
@@ -1152,7 +1138,7 @@ namespace Cheese
 			EndOp = CurrFunc.Instructions.Count-1;
 
 			Console.WriteLine("W-END   : {0} ", CurrFunc.Instructions.Count-1);
-
+			// FORTEST
 
 			// Fix the JMPs
 			CurrFunc.Instructions[ExpFailOp].A = (EndOp - ExpFailOp);
