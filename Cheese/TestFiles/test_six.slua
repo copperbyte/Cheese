@@ -40,6 +40,14 @@ function for_num_loop_nest()
 end
 
 ----
+function for_iter_loop()
+  tbl = {"a", "b", "c"}
+  for key, value in ipairs(tbl) do
+    print(key, value)
+  end
+end
+
+----
 
 
 
@@ -47,4 +55,4 @@ while_loop();
 repeat_loop();
 for_num_loop();
 for_num_loop_nest();
-
+for_iter_loop();
