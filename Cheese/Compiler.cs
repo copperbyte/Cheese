@@ -94,6 +94,7 @@ namespace Cheese
 	class LocalEntry {
 		internal Value Value = new Value();
 		internal string Name;
+		internal int StartPC, EndPC;
 	}
 
 	class Value {
@@ -166,7 +167,11 @@ namespace Cheese
 
 		internal SortedSet<int> UsedRegs;
 		internal List<ConstEntry> ConstantTable;
-		internal List<LocalEntry> LocalTable;
+
+		//internal List<LocalEntry> LocalTable;
+		internal List< List<LocalEntry> > LocalScopes;
+		internal List<LocalEntry> FullLocalTable;
+
 		internal List<Instruction> Instructions;
 	
 		public Function() {
@@ -176,7 +181,9 @@ namespace Cheese
 
 			UsedRegs = new SortedSet<int>();
 			ConstantTable = new List<ConstEntry>();
-			LocalTable = new List<LocalEntry>();
+			//LocalTable = new List<LocalEntry>();
+			LocalScopes = new List< List<LocalEntry> >();
+			FullLocalTable = new List<LocalEntry>();
 			Instructions = new List<Instruction>();
 		}
 
@@ -203,8 +210,10 @@ namespace Cheese
 		}
 
 		internal void PrintLocals() {
-			foreach(LocalEntry Local in LocalTable) {
-				Console.WriteLine("LV  {0:00} := {1}", Local.Value.Index, Local.Name);
+			foreach(LocalEntry Local in FullLocalTable) {
+				Console.WriteLine("LV  {0:00} := {1}  ({2}..{3})", 
+				                  Local.Value.Index, Local.Name,
+				                  Local.StartPC, Local.EndPC);
 			}
 		}
 
@@ -252,6 +261,8 @@ namespace Cheese
 			FunctionStack.Push(RootFunc);
 			CurrFunc = RootFunc;
 
+			PushLocalScope();
+
 			foreach(ParseNode Child in RootChunk.Children) {
 				if(Child.Type == ParseNode.EType.BLOCK)
 					CompileBlock(Child);
@@ -259,6 +270,7 @@ namespace Cheese
 
 			// all functions, even chunk root, end with a return
 			RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
+			PopLocalScope();
 
 			Functions.Insert(0, RootFunc);
 
@@ -369,6 +381,9 @@ namespace Cheese
 			}
 		}
 
+
+		// Constants and Globals
+
 		Value GetConstIndex(string ConstValue) {
 			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
 				if(Entry.StringVal != null && Entry.StringVal == ConstValue) {
@@ -422,23 +437,51 @@ namespace Cheese
 		}
 
 
+		// Local Tools 
 		Value GetLocalIndex(string Name, bool Create=true) {
-			foreach(LocalEntry Entry in CurrFunc.LocalTable) {
-				if(Entry.Name != null && Entry.Name == Name) {
-					return Entry.Value;
+
+			for(int RI = CurrFunc.LocalScopes.Count-1; RI >= 0; RI--) {
+				List<LocalEntry> CurrScope = CurrFunc.LocalScopes[RI];
+				foreach(LocalEntry Entry in CurrScope) {
+					if(Entry.Name != null && Entry.Name == Name) {
+						return Entry.Value;
+					}
 				}
 			}
+
+			//foreach(LocalEntry Entry in CurrFunc.LocalTable) {
+			//	if(Entry.Name != null && Entry.Name == Name) {
+			//		return Entry.Value;
+			//	}
+			//}
 			if(Create) {
-				//int FreeReg = GetFreeRegister();
-				LocalEntry NewEntry = new LocalEntry();
-				NewEntry.Value.Index = CurrFunc.LocalTable.Count;
-				NewEntry.Value.Loc = Value.ELoc.LOCAL;
-				NewEntry.Name = Name;
-				CurrFunc.LocalTable.Add(NewEntry);
-				return NewEntry.Value;
+				//if(CurrFunc.LocalScopes.Count == 0) {
+				//	PushLocalScope();
+				//}
+				return CreateLocal(Name);
 			} else {
 				return null;
 			}
+		}
+
+		Value CreateLocal(string Name) {
+			//int FreeReg = GetFreeRegister();
+			int LocalCount = 0;
+			foreach(List<LocalEntry> Scope in CurrFunc.LocalScopes) {
+				foreach(LocalEntry Entry in Scope) {
+					LocalCount++;
+				}
+			}
+			LocalEntry NewEntry = new LocalEntry();
+			//NewEntry.Value.Index = CurrFunc.LocalTable.Count;
+			NewEntry.Value.Index = LocalCount;
+			NewEntry.Value.Loc = Value.ELoc.LOCAL;
+			NewEntry.Name = Name;
+			NewEntry.StartPC = CurrFunc.Instructions.Count - 1;
+			List<LocalEntry> TopScope = CurrFunc.LocalScopes[CurrFunc.LocalScopes.Count - 1];
+			TopScope.Add(NewEntry);
+			//CurrFunc.LocalTable.Add(NewEntry);
+			return NewEntry.Value;
 		}
 
 		void FinalizeLocal(Value Local) {
@@ -446,6 +489,26 @@ namespace Cheese
 			CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, Local.Index+1);
 		}
 
+		void PushLocalScope() {
+			List<LocalEntry> NewScope = new List<LocalEntry>();
+			CurrFunc.LocalScopes.Add(NewScope);
+		}
+
+		void PopLocalScope() {
+			if(CurrFunc.LocalScopes.Count > 0) {
+				List<LocalEntry> OutScope = null;
+				OutScope = CurrFunc.LocalScopes[CurrFunc.LocalScopes.Count - 1];
+				CurrFunc.LocalScopes.RemoveAt(CurrFunc.LocalScopes.Count - 1);
+				foreach(LocalEntry Entry in OutScope) {
+					Entry.EndPC = CurrFunc.Instructions.Count - 1;
+					FreeRegister(Entry.Value.Index);
+				}
+				CurrFunc.FullLocalTable.AddRange(OutScope);
+			}
+		}
+
+
+		// Register Shuffles
 
 		Value GetLReg(VList LVals = null, VList RVals = null) {
 			Value Result = null;
@@ -693,6 +756,8 @@ namespace Cheese
 			return TReg;
 		}
 
+		// Compiling
+
 		void CompileBlock(ParseNode Block) {
 			if(Block.Children == null)
 				return;
@@ -831,6 +896,8 @@ namespace Cheese
 			FunctionStack.Push(NewFunc);
 			CurrFunc = NewFunc;
 
+			PushLocalScope();
+
 			// Parse ParList, List of Args/Locals?
 			// Do it after CurrFunc shift
 			// FIXME: '...'
@@ -845,6 +912,8 @@ namespace Cheese
 				CompileBlock(FuncBlock); 
 
 			CurrFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1); // default return
+
+			PopLocalScope();
 
 			Functions.Add(NewFunc);
 			FunctionStack.Pop();  // we are done
@@ -912,6 +981,8 @@ namespace Cheese
 
 				JumpStartOps.Add(CurrFunc.Instructions.Count);
 				Console.WriteLine("START  : {0} ", CurrFunc.Instructions.Count);
+				PushLocalScope();
+
 				VList ExpVs = null;
 				if(Exp != null) 
 					ExpVs = CompileExp(Exp);
@@ -947,6 +1018,7 @@ namespace Cheese
 					EndOpPos = CurrFunc.Instructions.Count;
 				}
 				Console.WriteLine("JEND   : {0} ", CurrFunc.Instructions.Count-1);
+				PopLocalScope();
 
 				ChildIndex += 4;
 			}
@@ -989,6 +1061,7 @@ namespace Cheese
 
 
 			Console.WriteLine("W-START  : {0} ", CurrFunc.Instructions.Count);
+			PushLocalScope();
 
 			{{
 				VList ExpVs = null;
@@ -1024,7 +1097,7 @@ namespace Cheese
 			EndOp = CurrFunc.Instructions.Count-1;
 				
 			Console.WriteLine("W-END   : {0} ", CurrFunc.Instructions.Count-1);
-
+			PopLocalScope();
 
 			// Fix the JMPs
 			CurrFunc.Instructions[ExpFailOp].A = (EndOp - ExpFailOp);
@@ -1052,6 +1125,7 @@ namespace Cheese
 
 
 			Console.WriteLine("R-START  : {0} ", StartOp);
+			PushLocalScope();
 
 			CompileBlock(Block);
 
@@ -1089,6 +1163,8 @@ namespace Cheese
 			CurrFunc.Instructions[EndOp].A = (StartOp - EndOp)-1;
 			Console.WriteLine("R-LOOP  {0} - {1} = {2}",
 			                  StartOp, EndOp, (StartOp - EndOp)-1);
+
+			PopLocalScope();
 		}
 
 
@@ -1110,12 +1186,19 @@ namespace Cheese
 				Block = ForStatement.Children[7];
 			}
 
+			PushLocalScope();
+
 			// Alloocate 4 Locals in a row.
 			Value IndexVal, LimitVal, StepVal, VisableValue;
-			IndexVal = GetLocalIndex("(for index)");
-			LimitVal = GetLocalIndex("(for limit)");
-			StepVal = GetLocalIndex("(for step)");
-			VisableValue = GetLocalIndex(VarName.Token.Value);
+			//IndexVal = GetLocalIndex("(for index)");
+			//LimitVal = GetLocalIndex("(for limit)");
+			//StepVal = GetLocalIndex("(for step)");
+			//VisableValue = GetLocalIndex(VarName.Token.Value);
+
+			IndexVal = CreateLocal("(for index)");
+			LimitVal = CreateLocal("(for limit)");
+			StepVal = CreateLocal("(for step)");
+			VisableValue = CreateLocal(VarName.Token.Value);
 
 			// Assign values to the loop vals
 
@@ -1156,6 +1239,8 @@ namespace Cheese
 			CurrFunc.Instructions[LoopOp].B = (PrepOp - LoopOp);
 			Console.WriteLine("FN-LOOP  {0} - {1} = {2}",
 			                  PrepOp, LoopOp, (PrepOp - LoopOp));
+
+			PopLocalScope();
 
 		}
 
