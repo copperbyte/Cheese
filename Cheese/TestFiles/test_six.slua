@@ -29,8 +29,22 @@ end
 
 ----
 
+function for_num_loop_nest()
+  local j = 5;
+  for i = 1, 3 do
+    for j = 1, i do
+      print(j);
+    end
+  end
+  print(i,j);
+end
+
+----
+
 
 
 while_loop();
 repeat_loop();
 for_num_loop();
+for_num_loop_nest();
+
