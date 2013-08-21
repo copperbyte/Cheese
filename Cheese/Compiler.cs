@@ -223,9 +223,9 @@ namespace Cheese
 				Console.WriteLine("{0:000} IC  {1}\t{2}  {3}  {4}", 
 				                  Counter,
 				                  Inst.Code, 
-				                  (Inst.isA?Inst.A.ToString():""), 
-				                  (Inst.isB?(Inst.rkB?(Inst.B+256):Inst.B).ToString():""), 
-				                  (Inst.isC?(Inst.rkC?(Inst.C+256):Inst.C).ToString():""));
+				                  (Inst.isA?Inst.A.ToString():" "), 
+				                  (Inst.isB?(Inst.rkB?(Inst.B+256):Inst.B).ToString():" "), 
+				                  (Inst.isC?(Inst.rkC?(Inst.C+256):Inst.C).ToString():" "));
 				Counter++;
 			}
 		}
@@ -756,6 +756,7 @@ namespace Cheese
 			return TReg;
 		}
 
+
 		// Compiling
 
 		void CompileBlock(ParseNode Block) {
@@ -777,6 +778,8 @@ namespace Cheese
 					CompileRepeatStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.FOR_NUM_STAT)
 					CompileForNumericalStmt(Statement);
+				else if(Statement.Type == ParseNode.EType.FOR_ITER_STAT)
+					CompileForIterStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.LOCAL_ASSIGN_STAT) 
 					CompileLocalAssignStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.RETURN_STAT) 
@@ -1242,6 +1245,64 @@ namespace Cheese
 
 			PopLocalScope();
 
+		}
+
+
+		void CompileForIterStmt(ParseNode ForStatement) {
+			// 'for' namelist 'in' explist1 'do' block 'end' | 
+
+			ParseNode NameList, ExpList, Block;
+			NameList = ForStatement.Children[1];
+			ExpList = ForStatement.Children[3];
+			Block = ForStatement.Children[5];
+
+
+			PushLocalScope();
+
+			// Alloocate 4 Locals in a row.
+			Value GeneratorVal, StateVal, ControlVal;
+			GeneratorVal = CreateLocal("(for generator)");
+			StateVal = CreateLocal("(for state)");
+			ControlVal = CreateLocal("(for control)");
+			VList VisableVals = CompileNameList(NameList);
+
+			VList InternalVals = new VList() { GeneratorVal, StateVal, ControlVal };
+			VList CalledInternalVals = CompileExpList(ExpList, InternalVals);
+			// Assign vals?
+			FinalizeLocal(GeneratorVal);
+			FinalizeLocal(StateVal);
+			FinalizeLocal(ControlVal);
+
+			foreach(Value LoopLocal in VisableVals) {
+				FinalizeLocal(LoopLocal);
+			}
+
+			int SkipOp = CurrFunc.Instructions.Count;
+			CurrFunc.Instructions.Add(Instruction.OP.JMP, 0);
+			Console.WriteLine("FI-SKIP  : {0} ", SkipOp);
+
+
+			int StartOp = CurrFunc.Instructions.Count;
+			int LoopOp = 0;
+
+			Console.WriteLine("FI-START  : {0} ", StartOp);
+
+			CompileBlock(Block);
+
+			LoopOp = CurrFunc.Instructions.Count;
+			CurrFunc.Instructions.Add(Instruction.OP.TFORLOOP, GeneratorVal.Index, 0, VisableVals.Count);
+			Console.WriteLine("FI-TFORLOOP   : {0} ", LoopOp);
+			CurrFunc.Instructions[LoopOp].isB = false;
+
+			int JumpBack = -((LoopOp - SkipOp)+1);
+			CurrFunc.Instructions.Add(Instruction.OP.JMP, JumpBack);
+			Console.WriteLine("FI-JMP   : {0} ", JumpBack);
+
+
+			PopLocalScope();
+
+			// Fix Skip
+			CurrFunc.Instructions[SkipOp].A = (-JumpBack) - 2;
 		}
 
 
