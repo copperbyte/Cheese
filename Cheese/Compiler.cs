@@ -1369,7 +1369,8 @@ namespace Cheese
 				else if(Name.Type == ParseNode.EType.TERMINAL && 
 				        Name.Token.Type == Token.EType.NAME) {
 					string NameVal = Name.Token.Value;
-					Value LVal = GetLocalIndex(NameVal);
+					//Value LVal = GetLocalIndex(NameVal);
+					Value LVal = CreateLocal(NameVal);
 					//Value LVal = new Value(LReg, Value.ELoc.LOCAL, Value.ESide.LEFT);
 					LVs.Add(LVal);
 				}
