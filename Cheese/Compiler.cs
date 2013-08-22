@@ -908,6 +908,9 @@ namespace Cheese
 			VList ParValues;
 			if(ParList != null) {
 				ParValues = CompileNameList(ParList.Children[0]);
+				foreach(Value Param in ParValues) {
+					FinalizeLocal(Param);
+				}
 				CurrFunc.NumParams = ParValues.Count;
 			}
 
