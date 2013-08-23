@@ -34,9 +34,15 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Scanner.cs" />
-    <Compile Include="Parser.cs" />
-    <Compile Include="Compiler.cs" />
+    <Compile Include="Syntax\Parser.cs" />
+    <Compile Include="Syntax\Scanner.cs" />
+    <Compile Include="Compiler\Compiler.cs" />
+    <Compile Include="VM\Machine.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Folder Include="Syntax\" />
+    <Folder Include="Compiler\" />
+    <Folder Include="VM\" />
+  </ItemGroup>
 </Project>
