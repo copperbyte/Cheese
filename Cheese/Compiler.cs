@@ -927,8 +927,9 @@ namespace Cheese
 
 			Value GVal = GetGlobalIndex(FuncNameStr);
 			Value ClosureReg = new Value(GetFreeRegister());
-			int UpValCount = 0;
-			CurrFunc.Instructions.Add(Instruction.OP.CLOSURE, ClosureReg.Index, UpValCount);
+			//int UpValCount = 0;
+			int FunctionNumber = Functions.Count - 1;
+			CurrFunc.Instructions.Add(Instruction.OP.CLOSURE, ClosureReg.Index, FunctionNumber);
 			EmitAssignOp(GVal, ClosureReg);
 			//CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, ClosureReg.Index, GVal.Index);
 			FreeRegister(GVal);
