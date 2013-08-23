@@ -262,7 +262,7 @@ namespace Cheese
 		public Chunk Compile(ParseNode RootChunk) 
 		{
 			if(RootChunk.Children == null)
-				return;
+				return null;
 
 			Chunk Result = new Chunk();
 			Result.RootFunc = new Function();
@@ -279,10 +279,10 @@ namespace Cheese
 			}
 
 			// all functions, even chunk root, end with a return
-			RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
+			Result.RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
 			PopLocalScope();
 
-			Functions.Insert(0, RootFunc);
+			Functions.Insert(0, Result.RootFunc);
 
 			FunctionStack.Pop();
 
