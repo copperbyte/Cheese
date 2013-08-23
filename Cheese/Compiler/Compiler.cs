@@ -232,6 +232,15 @@ namespace Cheese
 	}
 
 
+	// Essentially a function, but for the 'root' of the function tree, 
+	class Chunk {
+		internal Function RootFunc;
+
+		public Chunk() {
+			;
+		}
+	} 
+
 	class Compiler
 	{ 
 
@@ -250,16 +259,17 @@ namespace Cheese
 		}
 
 
-		public void Compile(ParseNode RootChunk) 
+		public Chunk Compile(ParseNode RootChunk) 
 		{
 			if(RootChunk.Children == null)
 				return;
 
-			Function RootFunc = new Function();
+			Chunk Result = new Chunk();
+			Result.RootFunc = new Function();
 
 			// Curr and Stack.Top should be synonymous
-			FunctionStack.Push(RootFunc);
-			CurrFunc = RootFunc;
+			FunctionStack.Push(Result.RootFunc);
+			CurrFunc = Result.RootFunc;
 
 			PushLocalScope();
 
@@ -280,6 +290,9 @@ namespace Cheese
 				Console.WriteLine("Function:  ");
 				Func.Print();
 			}
+
+
+			return Result;
 		}
 
 
