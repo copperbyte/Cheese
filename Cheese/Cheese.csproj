@@ -38,6 +38,7 @@
     <Compile Include="Syntax\Scanner.cs" />
     <Compile Include="Compiler\Compiler.cs" />
     <Compile Include="VM\Machine.cs" />
+    <Compile Include="VM\Environment.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
