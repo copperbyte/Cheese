@@ -4,104 +4,18 @@ using System;
 //using System.Text;
 using System.Collections.Generic;
 
+using Cheese.Machine;
+
 namespace Cheese
 {
-	using VList = List<Value>;
-
-	internal static class Tools {
-		public static void Add(this List<Instruction> InstList, Instruction.OP code) {
-			InstList.Add(new Instruction(code));	}
-		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a) {
-			InstList.Add(new Instruction(code, a));	}
-		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b) {
-			InstList.Add(new Instruction(code, a, b));	}
-		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b, int c) {
-			InstList.Add(new Instruction(code, a, b, c));	}
-		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b, bool bK, int c) {
-			InstList.Add(new Instruction(code, a, b, bK, c));	}
-		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b, int c, bool cK) {
-			InstList.Add(new Instruction(code, a, b, c, cK));	}
-		public static void Add(this List<Instruction> InstList, Instruction.OP code, int a, int b, bool bK, int c, bool cK) {
-			InstList.Add(new Instruction(code, a, b, bK, c, cK));	}
-	}
-
-	class Instruction {
-		public enum OP {
-			ERROR,
-			MOVE,
-			LOADK,
-			LOADBOOL,
-			LOADNIL,
-			GETUPVAL,
-			GETGLOBAL,
-			GETTABLE,
-			SETGLOBAL,
-			SETUPVAL,
-			SETTABLE,
-			NEWTABLE,
-			SELF,
-			ADD,
-			SUB,
-			MUL,
-			DIV,
-			MOD,
-			POW,
-			UNM,
-			NOT,
-			LEN,
-			CONCAT,
-			JMP,
-			EQ,
-			LT,
-			LE,
-			TEST,
-			TESTSET,
-			CALL,
-			TAILCALL,
-			RETURN,
-			FORLOOP,
-			FORPREP,
-			TFORLOOP,
-			SETLIST,
-			CLOSE,
-			CLOSURE,
-			VARARG
-		}
-
-		internal OP Code;
-		internal int A, B, C;
-		internal bool isA = false, isB=false, isC=false;
-		internal bool rkB = false, rkC = false;
-
-		public Instruction() { ; }
-		public Instruction(OP code) { Code = code; }
-		public Instruction(OP code, int a) { Code = code; A = a; isA = true; }
-		public Instruction(OP code, int a, int b) { Code = code; A = a; B = b; isA = isB = true;}
-		public Instruction(OP code, int a, int b, int c) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; }
-		public Instruction(OP code, int a, int b, bool bK, int c) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; rkB = bK;}
-		public Instruction(OP code, int a, int b, int c, bool cK) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; rkC = cK;}
-		public Instruction(OP code, int a, int b, bool bK, int c, bool cK) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; rkB = bK; rkC = cK;}
 
 
-	}
+	//using Value = CompilerValue;
+	using VList = List<CompilerValue>;
 
-	class ConstEntry {
-		internal Value Value = new Value();
-		internal double NumberVal;
-		internal string StringVal;
-	}
 
-	class LocalEntry {
-		internal Value Value = new Value();
-		internal string Name;
-		internal int StartPC, EndPC;
-	}
+	class CompilerValue {
 
-	class Value {
-		public enum ESide {
-			LEFT,
-			RIGHT
-		}
 		public enum ELoc {
 			LOCAL,  // locals are a register, but don't release it 
 			GLOBAL,
@@ -110,11 +24,11 @@ namespace Cheese
 			CONSTANT,
 			REGISTER
 		}
-		internal ESide Side;
+
 		internal ELoc Loc;
 		internal int Index;
 		internal bool Consecutive;
-		internal Value Key;
+		internal CompilerValue Key;
 
 		internal bool IsTable { 
 			get { return (Key != null); }
@@ -132,18 +46,16 @@ namespace Cheese
 			get { return (IsRegister || IsConstant); }
 		}
 
-		public Value(int Index=0, ELoc Loc=ELoc.REGISTER, ESide Side=ESide.RIGHT, Value Key=null) {
+		public CompilerValue(int Index=0, ELoc Loc=ELoc.REGISTER, CompilerValue Key=null) {
 			this.Index = Index; 
 			this.Loc = Loc;
-			this.Side = Side;
 			this.Consecutive = false;
 			this.Key = null;
 		}
 
-		public Value(Value Other) {
+		public CompilerValue(CompilerValue Other) {
 			this.Index = Other.Index;
 			this.Loc = Other.Loc;
-			this.Side = Other.Side;
 			this.Consecutive = Other.Consecutive;
 			this.Key = Other.Key;
 		}
@@ -158,82 +70,8 @@ namespace Cheese
 	}
 
 
-	class Function {
-
-
-		internal int NumParams;
-		internal bool IsVarArg;
-		internal int MaxStackSize;
-
-		internal SortedSet<int> UsedRegs;
-		internal List<ConstEntry> ConstantTable;
-
-		//internal List<LocalEntry> LocalTable;
-		internal List< List<LocalEntry> > LocalScopes;
-		internal List<LocalEntry> FullLocalTable;
-
-		internal List<Instruction> Instructions;
-	
-		public Function() {
-			NumParams = 0;
-			IsVarArg = false;
-			MaxStackSize = 0;
-
-			UsedRegs = new SortedSet<int>();
-			ConstantTable = new List<ConstEntry>();
-			//LocalTable = new List<LocalEntry>();
-			LocalScopes = new List< List<LocalEntry> >();
-			FullLocalTable = new List<LocalEntry>();
-			Instructions = new List<Instruction>();
-		}
-
-		internal void Print() {
-			PrintHeader();
-			PrintConstants();
-			PrintLocals();
-			PrintInstructions();
-		}
-
-		internal void PrintHeader() {
-			Console.WriteLine("NumParams: {0}", NumParams);
-			Console.WriteLine("IsVarArg: {0}", IsVarArg);
-			Console.WriteLine("MaxStackSize: {0}", MaxStackSize);
-		}
-
-		internal void PrintConstants() {
-			foreach(ConstEntry Const in ConstantTable) {
-				if(Const.StringVal != null)
-					Console.WriteLine("CS  {0:00} := {1}", Const.Value.Index, Const.StringVal);
-				else
-					Console.WriteLine("CN  {0:00} := {1}", Const.Value.Index, Const.NumberVal);
-			}
-		}
-
-		internal void PrintLocals() {
-			foreach(LocalEntry Local in FullLocalTable) {
-				Console.WriteLine("LV  {0:00} := {1}  ({2}..{3})", 
-				                  Local.Value.Index, Local.Name,
-				                  Local.StartPC, Local.EndPC);
-			}
-		}
-
-		internal void PrintInstructions() {
-			int Counter = 0;
-			foreach(Instruction Inst in Instructions) {
-				Console.WriteLine("{0:000} IC  {1}\t{2}  {3}  {4}", 
-				                  Counter,
-				                  Inst.Code, 
-				                  (Inst.isA?Inst.A.ToString():" "), 
-				                  (Inst.isB?(Inst.rkB?(Inst.B+256):Inst.B).ToString():" "), 
-				                  (Inst.isC?(Inst.rkC?(Inst.C+256):Inst.C).ToString():" "));
-				Counter++;
-			}
-		}
-	}
-
-
 	// Essentially a function, but for the 'root' of the function tree, 
-	class Chunk {
+	public class Chunk {
 		internal Function RootFunc;
 
 		public Chunk() {
@@ -244,18 +82,18 @@ namespace Cheese
 	class Compiler
 	{ 
 
-		Function CurrFunc;
-		List<Function> Functions;
-		Stack<Function> FunctionStack;
+		Machine.Function CurrFunc;
+		List<Machine.Function> Functions;
+		Stack<Machine.Function> FunctionStack;
 
-		List<Value> Globals;
+		List<CompilerValue> Globals;
 
 
 		public Compiler()
 		{
 			Functions = new List<Function>();
 			FunctionStack = new Stack<Function>();
-			Globals = new List<Value>();
+			Globals = new List<CompilerValue>();
 		}
 
 
@@ -319,14 +157,14 @@ namespace Cheese
 			return Result;
 		}
 
-		void ClaimRegister(Value Reg) {
+		void ClaimRegister(CompilerValue Reg) {
 			CurrFunc.UsedRegs.Add(Reg.Index);
 			CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, Reg.Index+1);
 		}
 
 
-		void FreeRegister(Value Reg) {
-			if(Reg.Loc == Value.ELoc.REGISTER)
+		void FreeRegister(CompilerValue Reg) {
+			if(Reg.Loc == CompilerValue.ELoc.REGISTER)
 				CurrFunc.UsedRegs.Remove(Reg.Index);
 		}
 
@@ -357,7 +195,7 @@ namespace Cheese
 				int CR = First+I;
 				//CurrFunc.UsedRegs.Add(CR);
 				//CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, CR+1);
-				Result.Add(new Value(CR, Value.ELoc.REGISTER, Value.ESide.RIGHT));
+				Result.Add(new CompilerValue(CR, CompilerValue.ELoc.REGISTER));
 				Result[Result.Count - 1].Consecutive = true;
 			}
 			return Result;
@@ -381,14 +219,14 @@ namespace Cheese
 					CurrFunc.UsedRegs.Add(CR);
 					CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, CR+1);
 				}
-				Result.Add(new Value(CR, Value.ELoc.REGISTER, Value.ESide.RIGHT));
+				Result.Add(new CompilerValue(CR, CompilerValue.ELoc.REGISTER));
 				Result[Result.Count - 1].Consecutive = true;
 			}
 			return Result;
 		}
 
 		void ClaimStackFrame(VList Frame) {
-			foreach(Value Reg in Frame) {
+			foreach(CompilerValue Reg in Frame) {
 				CurrFunc.UsedRegs.Add(Reg.Index);
 				CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, Reg.Index+1);
 			}
@@ -397,35 +235,40 @@ namespace Cheese
 
 		// Constants and Globals
 
-		Value GetConstIndex(string ConstValue) {
+		CompilerValue GetConstIndex(string ConstValue) {
 			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
 				if(Entry.StringVal != null && Entry.StringVal == ConstValue) {
-					return Entry.Value;
+					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
+					//return Entry.Value;
 				}
 			}
 			ConstEntry NewEntry = new ConstEntry();
-			NewEntry.Value.Index = CurrFunc.ConstantTable.Count;
-			NewEntry.Value.Loc = Cheese.Value.ELoc.CONSTANT;
+			NewEntry.Index = CurrFunc.ConstantTable.Count;
+			//NewEntry.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.StringVal = ConstValue;
 			CurrFunc.ConstantTable.Add(NewEntry);
-			return NewEntry.Value;
+			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
+			//return NewEntry.Value;
 		}
 
-		Value GetConstIndex(double ConstValue) {
+		CompilerValue GetConstIndex(double ConstValue) {
 			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
-				if(Entry.StringVal == null && Entry.NumberVal == ConstValue) 
-					return Entry.Value;
+				if(Entry.StringVal == null && Entry.NumberVal == ConstValue) {
+					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
+					//return Entry.Value;
+				}
 			}
 			ConstEntry NewEntry = new ConstEntry();
-			NewEntry.Value.Index = CurrFunc.ConstantTable.Count;
-			NewEntry.Value.Loc = Cheese.Value.ELoc.CONSTANT;
+			NewEntry.Index = CurrFunc.ConstantTable.Count;
+			//NewEntry.Value.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.NumberVal = ConstValue;
 			CurrFunc.ConstantTable.Add(NewEntry);
-			return NewEntry.Value;
+			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
+			//return NewEntry.Value;
 		}
 
 		bool CheckGlobal(string Name) {
-			foreach(Value Iter in Globals) {
+			foreach(CompilerValue Iter in Globals) {
 				if (Iter.Index < CurrFunc.ConstantTable.Count &&
 					Name == CurrFunc.ConstantTable[Iter.Index].StringVal) {
 					return true;
@@ -434,30 +277,31 @@ namespace Cheese
 			return false;
 		}
 
-		Value GetGlobalIndex(string GlobalName) {
-			foreach(Value Iter in Globals) {
+		CompilerValue GetGlobalIndex(string GlobalName) {
+			foreach(CompilerValue Iter in Globals) {
 				if (Iter.Index < CurrFunc.ConstantTable.Count &&
 				    GlobalName == CurrFunc.ConstantTable[Iter.Index].StringVal) {
 					return Iter;
 				}
 			}
-			Value ConstV = GetConstIndex(GlobalName);
-			Value GlobalV = new Value();
+			CompilerValue ConstV = GetConstIndex(GlobalName);
+			CompilerValue GlobalV = new CompilerValue();
 			GlobalV.Index = ConstV.Index;
-			GlobalV.Loc = Value.ELoc.GLOBAL;
+			GlobalV.Loc = CompilerValue.ELoc.GLOBAL;
 			Globals.Add(GlobalV);
 			return GlobalV;
 		}
 
 
 		// Local Tools 
-		Value GetLocalIndex(string Name, bool Create=true) {
+		CompilerValue GetLocalIndex(string Name, bool Create=true) {
 
 			for(int RI = CurrFunc.LocalScopes.Count-1; RI >= 0; RI--) {
 				List<LocalEntry> CurrScope = CurrFunc.LocalScopes[RI];
 				foreach(LocalEntry Entry in CurrScope) {
 					if(Entry.Name != null && Entry.Name == Name) {
-						return Entry.Value;
+						return new CompilerValue(Entry.Index, CompilerValue.ELoc.LOCAL);
+						//return Entry.Value;
 					}
 				}
 			}
@@ -477,7 +321,7 @@ namespace Cheese
 			}
 		}
 
-		Value CreateLocal(string Name) {
+		CompilerValue CreateLocal(string Name) {
 			//int FreeReg = GetFreeRegister();
 			int LocalCount = 0;
 			foreach(List<LocalEntry> Scope in CurrFunc.LocalScopes) {
@@ -487,17 +331,18 @@ namespace Cheese
 			}
 			LocalEntry NewEntry = new LocalEntry();
 			//NewEntry.Value.Index = CurrFunc.LocalTable.Count;
-			NewEntry.Value.Index = LocalCount;
-			NewEntry.Value.Loc = Value.ELoc.LOCAL;
+			NewEntry.Index = LocalCount;
+			//NewEntry.Value.Loc = CompilerValue.ELoc.LOCAL;
 			NewEntry.Name = Name;
 			NewEntry.StartPC = CurrFunc.Instructions.Count - 1;
 			List<LocalEntry> TopScope = CurrFunc.LocalScopes[CurrFunc.LocalScopes.Count - 1];
 			TopScope.Add(NewEntry);
 			//CurrFunc.LocalTable.Add(NewEntry);
-			return NewEntry.Value;
+			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.LOCAL);
+			//return NewEntry.Value;
 		}
 
-		void FinalizeLocal(Value Local) {
+		void FinalizeLocal(CompilerValue Local) {
 			CurrFunc.UsedRegs.Add(Local.Index);
 			CurrFunc.MaxStackSize = Math.Max(CurrFunc.MaxStackSize, Local.Index+1);
 		}
@@ -514,7 +359,7 @@ namespace Cheese
 				CurrFunc.LocalScopes.RemoveAt(CurrFunc.LocalScopes.Count - 1);
 				foreach(LocalEntry Entry in OutScope) {
 					Entry.EndPC = CurrFunc.Instructions.Count - 1;
-					FreeRegister(Entry.Value.Index);
+					FreeRegister(Entry.Index);
 				}
 				CurrFunc.FullLocalTable.AddRange(OutScope);
 			}
@@ -523,8 +368,8 @@ namespace Cheese
 
 		// Register Shuffles
 
-		Value GetLReg(VList LVals = null, VList RVals = null) {
-			Value Result = null;
+		CompilerValue GetLReg(VList LVals = null, VList RVals = null) {
+			CompilerValue Result = null;
 			if(LVals != null && RVals != null && LVals.Count > RVals.Count) {
 				if (LVals[RVals.Count].IsRegister && !LVals[RVals.Count].IsTable) {
 					Result = LVals[RVals.Count];
@@ -533,15 +378,15 @@ namespace Cheese
 			return Result;
 		}
 
-		Value GetTReg() {
-			return new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
+		CompilerValue GetTReg() {
+			return new CompilerValue(GetFreeRegister(), CompilerValue.ELoc.REGISTER);
 		}
-		Value GetUnclaimedReg() {
-			return new Value(GetUnclaimedRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
+		CompilerValue GetUnclaimedReg() {
+			return new CompilerValue(GetUnclaimedRegister(), CompilerValue.ELoc.REGISTER);
 		}
 
-		Value GetLRegorTReg(VList LVals = null, VList RVals = null) {
-			Value Result = null;
+		CompilerValue GetLRegorTReg(VList LVals = null, VList RVals = null) {
+			CompilerValue Result = null;
 			Result = GetLReg(LVals, RVals);
 			if(Result == null)
 				Result = GetTReg();
@@ -552,20 +397,20 @@ namespace Cheese
 		// make table resolution recursive? 
 		// end point, table must be Register, Key must be REG/CONST
 		// Takes Value, returns Value with directly usable Table parts?
-		Value ResolveTableValue(Value Original) {
+		CompilerValue ResolveTableValue(CompilerValue Original) {
 
 			if(!Original.IsTable)
 				return null;
 
 			Console.WriteLine("R:  {0} ", Original);
 
-			Value UseVal = null;
+			CompilerValue UseVal = null;
 
 			if(Original.IsRegister) {
-				UseVal = new Value(Original);
+				UseVal = new CompilerValue(Original);
 			} else {
-				Value TReg = GetTReg();
-				Value TKey = Original.Key;
+				CompilerValue TReg = GetTReg();
+				CompilerValue TKey = Original.Key;
 				Original.Key = null;
 				EmitToRegisterOp(TReg, Original);
 				Original.Key = TKey;
@@ -574,18 +419,18 @@ namespace Cheese
 			}
 
 			// Get Key into a REG or CONST
-			Value UseKey = null;
+			CompilerValue UseKey = null;
 			//bool KeyConst = false;
 
 
 			if(Original.Key.IsRegister) {
-				UseKey = new Value(Original.Key);
+				UseKey = new CompilerValue(Original.Key);
 			} else if(Original.Key.IsConstant) {
-				UseKey = new Value(Original.Key);
+				UseKey = new CompilerValue(Original.Key);
 				//KeyConst = true;
 			} else {
-				Value TReg = GetTReg();
-				Value TK = Original.Key.Key;
+				CompilerValue TReg = GetTReg();
+				CompilerValue TK = Original.Key.Key;
 				Original.Key.Key = null;
 				EmitToRegisterOp(TReg, Original.Key);
 				Original.Key.Key = TK;
@@ -599,9 +444,9 @@ namespace Cheese
 			if(UseVal.Key.IsTable) {
 				// GETTABLE
 				// Chain UseKey's Key to its result register
-				Value ChainKey = UseKey.Key;
+				CompilerValue ChainKey = UseKey.Key;
 				UseKey.Key = null;
-				Value ChainTable = GetAsRegister(UseVal);
+				CompilerValue ChainTable = GetAsRegister(UseVal);
 				ChainTable.Key = ChainKey;
 				FreeRegister(UseKey);
 				FreeRegister(UseVal);
@@ -613,7 +458,7 @@ namespace Cheese
 
 		// Move Whatever to Register Function
 		// Mostly for moving whatever RVal to a Temp Reg		
-		void EmitToRegisterOp(Value LVal, Value RVal) {
+		void EmitToRegisterOp(CompilerValue LVal, CompilerValue RVal) {
 			Console.WriteLine("E2:  {0}  <=  {1}", LVal, RVal);
 			if(!LVal.IsRegister)
 				return;
@@ -623,7 +468,7 @@ namespace Cheese
 
 			if(RVal.IsTable) {
 				// Magic RVal to Good-Table-RVal Function Here
-				Value UseRVal = ResolveTableValue(RVal);
+				CompilerValue UseRVal = ResolveTableValue(RVal);
 				FreeRegister(UseRVal.Key);
 				FreeRegister(UseRVal);
 				CurrFunc.Instructions.Add(Instruction.OP.GETTABLE, LVal.Index, UseRVal.Index, UseRVal.Key.Index, UseRVal.Key.IsConstant);
@@ -639,7 +484,7 @@ namespace Cheese
 		}
 
 		// Mostly for moving a Temp Reg to a whatever LVal	
-		void EmitFromRegisterOp(Value LVal, Value RVal) {
+		void EmitFromRegisterOp(CompilerValue LVal, CompilerValue RVal) {
 			Console.WriteLine("E3:  {0}  <=  {1}", LVal, RVal);
 			if(!RVal.IsRegister)
 				return;
@@ -664,7 +509,7 @@ namespace Cheese
 		}
 
 		// Make a Move X to Y general function
-		void EmitAssignOp(Value LVal, Value RVal) {
+		void EmitAssignOp(CompilerValue LVal, CompilerValue RVal) {
 			if(LVal == null || RVal == null)
 				return;
 
@@ -685,12 +530,12 @@ namespace Cheese
 				// Takes Value, returns Value with directly usable Table parts?
 
 				// Get L into a register
-				Value UseLVal = null;
+				CompilerValue UseLVal = null;
 				if(LVal.IsRegister) {
 					UseLVal = LVal;
 				} else {
-					Value TReg = GetTReg();
-					Value TKey = LVal.Key;
+					CompilerValue TReg = GetTReg();
+					CompilerValue TKey = LVal.Key;
 					LVal.Key = null;
 					EmitToRegisterOp(TReg, LVal);
 					LVal.Key = TKey;
@@ -699,7 +544,7 @@ namespace Cheese
 				}
 
 				// Get Key into a REG or CONST
-				Value UseKey = null;
+				CompilerValue UseKey = null;
 				bool KeyConst = false;
 				if(UseLVal.Key.IsRegister) {
 					UseKey = UseLVal.Key;
@@ -707,7 +552,7 @@ namespace Cheese
 					UseKey = UseLVal.Key;
 					KeyConst = true;
 				} else {
-					Value TReg = GetTReg();
+					CompilerValue TReg = GetTReg();
 					EmitToRegisterOp(TReg, UseLVal.Key);
 					UseKey = TReg;
 				}
@@ -716,7 +561,7 @@ namespace Cheese
 
 				// figure out the R (is an RK) , generate a SETTABLE ;
 				if(RVal.IsTable) {
-					Value TReg = GetTReg();
+					CompilerValue TReg = GetTReg();
 					EmitToRegisterOp(TReg, RVal);
 					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, RVal.Index);
 					FreeRegister(TReg);
@@ -726,7 +571,7 @@ namespace Cheese
 				} else if(RVal.IsConstant) {
 					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, RVal.Index, true);
 				} else if(RVal.IsGlobal) {
-					Value TReg = GetTReg();
+					CompilerValue TReg = GetTReg();
 					EmitToRegisterOp(TReg, RVal);
 					FreeRegister(TReg);
 					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, TReg.Index);
@@ -745,7 +590,7 @@ namespace Cheese
 					EmitFromRegisterOp(LVal, RVal);
 					FreeRegister(RVal);
 				} else {
-					Value TReg = GetTReg();
+					CompilerValue TReg = GetTReg();
 					EmitToRegisterOp(TReg, RVal);
 					EmitFromRegisterOp(LVal, TReg);
 					FreeRegister(TReg);
@@ -759,11 +604,11 @@ namespace Cheese
 
 		// Return self, or make a TReg, assign it.
 		// Caller should Free this, always
-		Value GetAsRegister(Value SrcVal) {
+		CompilerValue GetAsRegister(CompilerValue SrcVal) {
 			if(SrcVal.IsRegister && !SrcVal.IsTable)
 				return SrcVal;
 
-			Value TReg = GetUnclaimedReg();
+			CompilerValue TReg = GetUnclaimedReg();
 			EmitToRegisterOp(TReg, SrcVal);
 			ClaimRegister(TReg);
 			return TReg;
@@ -825,7 +670,7 @@ namespace Cheese
 
 			int MaxCount = Math.Max(LVs.Count, RVs.Count);
 			for(int I = 0; I < MaxCount; I++) {
-				Value LVal=null, RVal=null;
+				CompilerValue LVal=null, RVal=null;
 
 				if(LVs.Count > I)
 					LVal = LVs[I];
@@ -862,7 +707,7 @@ namespace Cheese
 
 			int MaxCount = Math.Max(LVs.Count, RVs.Count);
 			for(int I = 0; I < MaxCount; I++) {
-				Value LVal=null, RVal=null;
+				CompilerValue LVal=null, RVal=null;
 
 				if(LVs.Count > I)
 					LVal = LVs[I];
@@ -921,7 +766,7 @@ namespace Cheese
 			VList ParValues;
 			if(ParList != null) {
 				ParValues = CompileNameList(ParList.Children[0]);
-				foreach(Value Param in ParValues) {
+				foreach(CompilerValue Param in ParValues) {
 					FinalizeLocal(Param);
 				}
 				CurrFunc.NumParams = ParValues.Count;
@@ -938,8 +783,8 @@ namespace Cheese
 			FunctionStack.Pop();  // we are done
 			CurrFunc = FunctionStack.Peek();
 
-			Value GVal = GetGlobalIndex(FuncNameStr);
-			Value ClosureReg = new Value(GetFreeRegister());
+			CompilerValue GVal = GetGlobalIndex(FuncNameStr);
+			CompilerValue ClosureReg = new CompilerValue(GetFreeRegister());
 			//int UpValCount = 0;
 			int FunctionNumber = Functions.Count - 1;
 			CurrFunc.Instructions.Add(Instruction.OP.CLOSURE, ClosureReg.Index, FunctionNumber);
@@ -1009,13 +854,13 @@ namespace Cheese
 
 
 				if(ExpVs != null) {
-					Value ExpV = ExpVs[0];
+					CompilerValue ExpV = ExpVs[0];
 					if(ExpV == null) {
 						; // do nothing
 					} else {
 						// else, check ExpVs for true/false
 						if(!(ExpV.IsRegister && !ExpV.IsTable)) {
-							Value UR = GetUnclaimedReg();
+							CompilerValue UR = GetUnclaimedReg();
 							EmitToRegisterOp(UR, ExpV);
 							ClaimRegister(UR);
 							ExpV = UR;
@@ -1090,13 +935,13 @@ namespace Cheese
 
 
 				if(ExpVs != null) {
-					Value ExpV = ExpVs[0];
+					CompilerValue ExpV = ExpVs[0];
 					if(ExpV == null) {
 						; // do nothing
 					} else {
 						// else, check ExpVs for true/false
 						if(!(ExpV.IsRegister && !ExpV.IsTable)) {
-							Value UR = GetUnclaimedReg();
+							CompilerValue UR = GetUnclaimedReg();
 							EmitToRegisterOp(UR, ExpV);
 							ClaimRegister(UR);
 							ExpV = UR;
@@ -1156,13 +1001,13 @@ namespace Cheese
 
 
 					if(ExpVs != null) {
-						Value ExpV = ExpVs[0];
+						CompilerValue ExpV = ExpVs[0];
 						if(ExpV == null) {
 							; // do nothing
 						} else {
 							// else, check ExpVs for true/false
 							if(!(ExpV.IsRegister && !ExpV.IsTable)) {
-								Value UR = GetUnclaimedReg();
+								CompilerValue UR = GetUnclaimedReg();
 								EmitToRegisterOp(UR, ExpV);
 								ClaimRegister(UR);
 								ExpV = UR;
@@ -1209,7 +1054,7 @@ namespace Cheese
 			PushLocalScope();
 
 			// Alloocate 4 Locals in a row.
-			Value IndexVal, LimitVal, StepVal, VisableValue;
+			CompilerValue IndexVal, LimitVal, StepVal, VisableValue;
 			//IndexVal = GetLocalIndex("(for index)");
 			//LimitVal = GetLocalIndex("(for limit)");
 			//StepVal = GetLocalIndex("(for step)");
@@ -1229,7 +1074,7 @@ namespace Cheese
 			FinalizeLocal(LimitVal);
 
 			if(StepExp == null) {
-				Value DefaultOne = GetConstIndex(1.0);
+				CompilerValue DefaultOne = GetConstIndex(1.0);
 				EmitAssignOp(StepVal, DefaultOne);
 			} else {
 				EmitAssignOp(StepVal, CompileSingularExp(StepExp, StepVal));
@@ -1277,7 +1122,7 @@ namespace Cheese
 			PushLocalScope();
 
 			// Alloocate 4 Locals in a row.
-			Value GeneratorVal, StateVal, ControlVal;
+			CompilerValue GeneratorVal, StateVal, ControlVal;
 			GeneratorVal = CreateLocal("(for generator)");
 			StateVal = CreateLocal("(for state)");
 			ControlVal = CreateLocal("(for control)");
@@ -1290,7 +1135,7 @@ namespace Cheese
 			FinalizeLocal(StateVal);
 			FinalizeLocal(ControlVal);
 
-			foreach(Value LoopLocal in VisableVals) {
+			foreach(CompilerValue LoopLocal in VisableVals) {
 				FinalizeLocal(LoopLocal);
 			}
 
@@ -1340,28 +1185,28 @@ namespace Cheese
 				if(Child.Type != ParseNode.EType.VAR)
 					continue;
 
-				Value CurrV = CompileLeftVar(Child);
+				CompilerValue CurrV = CompileLeftVar(Child);
 				Result.Add(CurrV);
 			}
 
 			return Result;
 		}
 
-		Value CompileLeftVar(ParseNode Var) {
+		CompilerValue CompileLeftVar(ParseNode Var) {
 
-			Value Result = new Value();
+			CompilerValue Result = new CompilerValue();
 
-			Value First = null;
+			CompilerValue First = null;
 
 			int ChildIndex = 0;
 			if(Var.Children[0].Type == ParseNode.EType.TERMINAL &&
 				Var.Children[0].Token.Type == Token.EType.NAME) {
 				string Name = Var.Children[0].Token.Value; ChildIndex++;
-				Value LocalV = GetLocalIndex(Name, false);
+				CompilerValue LocalV = GetLocalIndex(Name, false);
 				if(LocalV != null) {
 					First = LocalV;
 				} else {
-					Value GlobalV = GetGlobalIndex(Name);
+					CompilerValue GlobalV = GetGlobalIndex(Name);
 					if(GlobalV != null)
 						First = GlobalV;
 				} 
@@ -1394,13 +1239,13 @@ namespace Cheese
 				while(VarSuffix.Children[0].Type == ParseNode.EType.NAME_AND_ARGS) {
 					break;
 				}
-				Value Key = null;
+				CompilerValue Key = null;
 				if(VarSuffix.Children[0].Type == ParseNode.EType.TERMINAL &&
 					VarSuffix.Children[0].Token.IsBracket("[")) {
 					VList SubRs = CompileExp(VarSuffix.Children[1]);
 					Key = SubRs[0];
 					if(Key.IsTable) {
-						Value TReg = GetUnclaimedReg();
+						CompilerValue TReg = GetUnclaimedReg();
 						EmitToRegisterOp(TReg, Key);
 						ClaimRegister(TReg);
 						Key = TReg;
@@ -1416,14 +1261,14 @@ namespace Cheese
 			}
 
 			if(Keys.Count > 0) {
-				Value Curr = new Value(First);
+				CompilerValue Curr = new CompilerValue(First);
 				// Take first, wrap it in a new Table value
 				for(int i = 0; i < Keys.Count; i++) {
-					Value Key = Keys[i];
+					CompilerValue Key = Keys[i];
 					Curr.Key = Key;
 
 					if( (i + 1) < Keys.Count) {
-						Value TReg = GetAsRegister(Curr);
+						CompilerValue TReg = GetAsRegister(Curr);
 						FreeRegister(Curr.Key);
 						FreeRegister(Curr);
 						Curr = TReg;
@@ -1448,7 +1293,7 @@ namespace Cheese
 				        Name.Token.Type == Token.EType.NAME) {
 					string NameVal = Name.Token.Value;
 					//Value LVal = GetLocalIndex(NameVal);
-					Value LVal = CreateLocal(NameVal);
+					CompilerValue LVal = CreateLocal(NameVal);
 					//Value LVal = new Value(LReg, Value.ELoc.LOCAL, Value.ESide.LEFT);
 					LVs.Add(LVal);
 				}
@@ -1492,15 +1337,15 @@ namespace Cheese
 				if(Child.Type == ParseNode.EType.TERMINAL) {
 					if(Child.Token.Type == Token.EType.KEYWORD) {
 						if(Child.Token.IsKeyword("nil")) {
-							Value Dest = GetLRegorTReg(LVals, RVals);
+							CompilerValue Dest = GetLRegorTReg(LVals, RVals);
 							CurrFunc.Instructions.Add(Instruction.OP.LOADNIL, Dest.Index, Dest.Index);
 							Result.Add(Dest);
 						} else if(Child.Token.IsKeyword("true")) {
-							Value Dest = GetLRegorTReg(LVals, RVals);
+							CompilerValue Dest = GetLRegorTReg(LVals, RVals);
 							CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, Dest.Index, 1, 0);
 							Result.Add(Dest);
 						} else if(Child.Token.IsKeyword("false")) {
-							Value Dest = GetLRegorTReg(LVals, RVals);
+							CompilerValue Dest = GetLRegorTReg(LVals, RVals);
 							CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, Dest.Index, 0, 0);
 							Result.Add(Dest);
 						}
@@ -1509,13 +1354,13 @@ namespace Cheese
 					} else if(Child.Token.Type == Token.EType.NUMBER) {
 						double NumValue = 0.0;
 						Double.TryParse(Child.Token.Value, out NumValue);
-						Value CVal = GetConstIndex(NumValue);
+						CompilerValue CVal = GetConstIndex(NumValue);
 						Result.Add(CVal);
 						//Value Dest = GetLRegorTReg(LVals, RVals);
 						//EmitAssignOp(Dest, CVal);
 						//Result.Add(Dest);
 					} else if(Child.Token.Type == Token.EType.STRING) {
-						Value CVal = GetConstIndex(Child.Token.Value);
+						CompilerValue CVal = GetConstIndex(Child.Token.Value);
 						Result.Add(CVal);
 						//Value Dest = GetLRegorTReg(LVals, RVals);
 						//EmitAssignOp(Dest, CVal);
@@ -1539,7 +1384,7 @@ namespace Cheese
 			return Result;
 		}
 
-		Value CompileSingularExp(ParseNode Exp, Value LVal) {
+		CompilerValue CompileSingularExp(ParseNode Exp, CompilerValue LVal) {
 			VList LVals = null;
 			if(LVal != null) {
 				LVals = new VList();
@@ -1606,7 +1451,7 @@ namespace Cheese
 				}
 				Console.WriteLine();
 
-				Value FuncVal = Result[Result.Count - 1];
+				CompilerValue FuncVal = Result[Result.Count - 1];
 				Result.RemoveAt(Result.Count - 1);
 
 				FreeRegister(FuncVal);
@@ -1654,14 +1499,14 @@ namespace Cheese
 			if(VarOrExp.Children[0].Type == ParseNode.EType.VAR) {
 				ParseNode Var = VarOrExp.Children[0];
 				string Name = Var.Children[0].Token.Value; // FIXME complicated names
-				Value VarVal = null;
+				CompilerValue VarVal = null;
 				{{
-					Value LocalV = GetLocalIndex(Name, false);
+					CompilerValue LocalV = GetLocalIndex(Name, false);
 					if(LocalV != null) {
 						VarVal = LocalV;
 					} else {
 						//bool IsGlobal = CheckGlobal(Name);
-						Value GlobalV = GetGlobalIndex(Name);
+						CompilerValue GlobalV = GetGlobalIndex(Name);
 						VarVal = GlobalV;
 					}
 				}}
@@ -1684,13 +1529,13 @@ namespace Cheese
 						while(VarSuffix.Children[0].Type == ParseNode.EType.NAME_AND_ARGS) {
 							break;
 						}
-						Value Key = null;
+						CompilerValue Key = null;
 						if(VarSuffix.Children[0].Type == ParseNode.EType.TERMINAL &&
 						   VarSuffix.Children[0].Token.IsBracket("[")) {
 							VList SubRs = CompileExp(VarSuffix.Children[1]);
 							Key = SubRs[0];
 							if(Key.IsTable){
-								Value TReg = GetUnclaimedReg();
+								CompilerValue TReg = GetUnclaimedReg();
 								EmitToRegisterOp(TReg, Key);
 								ClaimRegister(TReg);
 								Key = TReg;
@@ -1706,14 +1551,14 @@ namespace Cheese
 					}
 
 					if(Keys.Count > 0) {
-						Value Curr = new Value(VarVal);
+						CompilerValue Curr = new CompilerValue(VarVal);
 						// Take first, wrap it in a new Table value
 						for(int i = 0; i < Keys.Count; i++) {
-							Value Key = Keys[i];
+							CompilerValue Key = Keys[i];
 							Curr.Key = Key;
 
 							if( (i + 1) < Keys.Count) {
-								Value TReg = GetAsRegister(Curr);
+								CompilerValue TReg = GetAsRegister(Curr);
 								FreeRegister(Curr.Key);
 								FreeRegister(Curr);
 								Curr = TReg;
@@ -1794,7 +1639,7 @@ namespace Cheese
 			return ArgCount;
 		}
 
-		Value CompileTableConstructor(ParseNode TableCons, VList LVals=null, VList RVals=null) {
+		CompilerValue CompileTableConstructor(ParseNode TableCons, VList LVals=null, VList RVals=null) {
 			// tableconstructor : '{' (fieldlist)? '}';
 			//fieldlist : field (fieldsep field)* (fieldsep)?;
 			//field : '[' exp ']' '=' exp | NAME '=' exp | exp;
@@ -1824,7 +1669,7 @@ namespace Cheese
 
 
 			// always create to a fresh register
-			Value ConsReg = GetLRegorTReg();		
+			CompilerValue ConsReg = GetLRegorTReg();		
 
 			CurrFunc.Instructions.Add(Instruction.OP.NEWTABLE, ConsReg.Index, ArrayCount, HashCount); // FIXME
 
@@ -1855,7 +1700,7 @@ namespace Cheese
 						ParseNode KeyNode = Field.Children[0];
 						ParseNode ValNode = Field.Children[2];
 
-						Value KeyVal = null;
+						CompilerValue KeyVal = null;
 						if(KeyNode.Type == ParseNode.EType.TERMINAL && 
 							KeyNode.Token.Type == Token.EType.NAME) {
 							KeyVal = GetConstIndex(KeyNode.Token.Value);
@@ -1877,7 +1722,7 @@ namespace Cheese
 				if(ArrayCount > 0) {
 					CurrFunc.Instructions.Add(Instruction.OP.SETLIST, ConsReg.Index, ArrayCount, 1);
 					// FIXME: SETLIST pages, 50+? Move into Loop
-					foreach(Value Val in ArrayVals) {
+					foreach(CompilerValue Val in ArrayVals) {
 						FreeRegister(Val);
 					}
 				}
@@ -1888,7 +1733,7 @@ namespace Cheese
 			return ConsReg;
 		}
 
-		Value CompileMathBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
+		CompilerValue CompileMathBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
 
 			ParseNode Left = BinOp.Children[0];
 			ParseNode Op = BinOp.Children[1];
@@ -1916,8 +1761,8 @@ namespace Cheese
 
 			// FIXME: Handle input values as Reg-or-Consts
 
-			Value LV = LVs[0];
-			Value RV = RVs[0];
+			CompilerValue LV = LVs[0];
+			CompilerValue RV = RVs[0];
 			
 			if(!LV.IsRegisterOrConstant || LV.IsTable)
 				LV = GetAsRegister(LV);
@@ -1929,14 +1774,14 @@ namespace Cheese
 			FreeRegister(RV);
 
 			//Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
-			Value Result = GetLRegorTReg(LVals, RVals);
+			CompilerValue Result = GetLRegorTReg(LVals, RVals);
 
 			CurrFunc.Instructions.Add(InstOp, Result.Index, LV.Index, LV.IsConstant, RV.Index, RV.IsConstant);
 
 			return Result;
 		}
 
-		Value CompileCompBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
+		CompilerValue CompileCompBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
 			//  EQ A B C if ((RK(B) == RK(C)) ~= A) then PC++
 			//  LT A B C if ((RK(B) <  RK(C)) ~= A) then PC++
 			//  LE A B C if ((RK(B) <= RK(C)) ~= A) then PC++
@@ -1965,7 +1810,7 @@ namespace Cheese
 				InstOp = Instruction.OP.EQ;
 
 
-			Value LV = LVs[0], RV = RVs[0];
+			CompilerValue LV = LVs[0], RV = RVs[0];
 
 			if(!LV.IsRegisterOrConstant || LV.IsTable)
 				LV = GetAsRegister(LV);
@@ -1975,7 +1820,7 @@ namespace Cheese
 			int CompValue = 0;
 
 			if(Op.Token.IsOperator(">") || Op.Token.IsOperator(">=")) {
-				Value T = LV;
+				CompilerValue T = LV;
 				LV = RV;
 				RV = T;
 			}
@@ -1989,7 +1834,7 @@ namespace Cheese
 			//Value Result = new Value(GetFreeRegister(), Value.ELoc.REGISTER, Value.ESide.RIGHT);
 			//Value Result = GetLRegorTReg(LVals, RVals);
 
-			Value DestVal = null;
+			CompilerValue DestVal = null;
 			if(LVals != null && RVals != null && LVals.Count > RVals.Count) {
 				DestVal = LVals[RVals.Count];
 				CompValue = 1;
@@ -2007,7 +1852,7 @@ namespace Cheese
 			} else if(DestVal != null) {
 				CurrFunc.Instructions.Add(Instruction.OP.JMP, 1);
 				Console.WriteLine(" CBO: LReg: {0}", DestVal.ToString());
-				Value TReg = GetUnclaimedReg();
+				CompilerValue TReg = GetUnclaimedReg();
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 0, 1); // skip next 
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 1, 0);
 				EmitFromRegisterOp(DestVal, TReg);
@@ -2016,7 +1861,7 @@ namespace Cheese
 			return DestVal;
 		}
 
-		Value CompileUnOp(ParseNode UnOp, VList LVals = null, VList RVals = null) {
+		CompilerValue CompileUnOp(ParseNode UnOp, VList LVals = null, VList RVals = null) {
 
 			ParseNode Op = UnOp.Children[0];
 			ParseNode Right = UnOp.Children[1];
@@ -2032,10 +1877,10 @@ namespace Cheese
 			else if(Op.Token.IsOperator("#"))
 				InstOp = Instruction.OP.LEN;
 
-			Value RV = GetAsRegister(RVs[0]);
+			CompilerValue RV = GetAsRegister(RVs[0]);
 			FreeRegister(RV);
 
-			Value Result = GetLRegorTReg(LVals, RVals);
+			CompilerValue Result = GetLRegorTReg(LVals, RVals);
 
 			CurrFunc.Instructions.Add(InstOp, Result.Index, RV.Index);
 
