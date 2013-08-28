@@ -8,14 +8,12 @@ namespace Cheese.Machine
 {
 
 	class ConstEntry {
-		//internal CompilerValue Value = new CompilerValue();
 		internal int Index;
 		internal double NumberVal;
 		internal string StringVal;
 	}
 
 	class LocalEntry {
-		//internal CompilerValue Value = new CompilerValue();
 		internal int Index;
 		internal string Name;
 		internal int StartPC, EndPC;
@@ -28,7 +26,7 @@ namespace Cheese.Machine
 		internal bool IsVarArg;
 		internal int MaxStackSize;
 
-		internal SortedSet<int> UsedRegs;
+		internal SortedSet<int> UsedRegs;  // Move back to Compiler???
 		internal List<ConstEntry> ConstantTable;
 
 		//internal List<LocalEntry> LocalTable;
