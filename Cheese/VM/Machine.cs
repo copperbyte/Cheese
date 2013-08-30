@@ -127,8 +127,25 @@ namespace Cheese.Machine
 				Console.WriteLine("Executing: {0}", CurrOp.ToString());
 
 				switch(CurrOp.Code) { 
+
+				case Instruction.OP.MOVE:
+					Stack[CurrOp.A] = Stack[CurrOp.B];
+					break;
+
 				case Instruction.OP.LOADK: 
 					Stack[CurrOp.A] = Function.ConstantTable[CurrOp.B].Value;
+					break;
+				
+				case Instruction.OP.LOADBOOL:
+					Stack[CurrOp.A] = (CurrOp.B != 0 ? LuaBool.True : LuaBool.False);
+					if(CurrOp.C != 0)
+						ProgramCounter++;
+					break;
+
+				case Instruction.OP.LOADNIL:
+					for(int i = CurrOp.A; i <= CurrOp.B; i++) {
+						Stack[i] = LuaNil.Nil;
+					}
 					break;
 				// ADD
 				// SUB
