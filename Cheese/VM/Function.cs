@@ -11,6 +11,7 @@ namespace Cheese.Machine
 		internal int Index;
 		internal double NumberVal;
 		internal string StringVal;
+		internal LuaValue Value;
 	}
 
 	class LocalEntry {
@@ -81,12 +82,15 @@ namespace Cheese.Machine
 		internal void PrintInstructions() {
 			int Counter = 0;
 			foreach(Instruction Inst in Instructions) {
-				Console.WriteLine("{0:000} IC  {1}\t{2}  {3}  {4}", 
-				                  Counter,
-				                  Inst.Code, 
-				                  (Inst.isA?Inst.A.ToString():" "), 
-				                  (Inst.isB?(Inst.rkB?(Inst.B+256):Inst.B).ToString():" "), 
-				                  (Inst.isC?(Inst.rkC?(Inst.C+256):Inst.C).ToString():" "));
+				//Console.WriteLine("{0:000} IC  {1}\t{2}  {3}  {4}", 
+				//                  Counter,
+				//                  Inst.Code, 
+				//                  (Inst.isA?Inst.A.ToString():" "), 
+				//                  (Inst.isB?(Inst.rkB?(Inst.B+256):Inst.B).ToString():" "), 
+				//                  (Inst.isC?(Inst.rkC?(Inst.C+256):Inst.C).ToString():" "));
+				Console.WriteLine("{0:000} IC  {1}", 
+				                  Counter, Inst.ToString());
+
 				Counter++;
 			}
 		}
