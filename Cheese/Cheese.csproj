@@ -41,6 +41,7 @@
     <Compile Include="VM\Environment.cs" />
     <Compile Include="VM\Function.cs" />
     <Compile Include="VM\Instruction.cs" />
+    <Compile Include="VM\LuaValue.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
