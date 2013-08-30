@@ -81,6 +81,16 @@ namespace Cheese.Machine
 		public Instruction(OP code, int a, int b, bool bK, int c, bool cK) { Code = code; A = a; B = b; C = c; isA = isB = isC = true; rkB = bK; rkC = cK;}
 
 
+		public override string ToString() {
+			return String.Format(
+				"{1}\t{2}  {3}  {4}", 
+				0,
+				Code, 
+				(isA ? A.ToString() : " "), 
+				(isB ? (rkB ? (B + 256) : B).ToString() : " "), 
+				(isC ? (rkC ? (C + 256) : C).ToString() : " "));
+		}
+
 	}
 
 
