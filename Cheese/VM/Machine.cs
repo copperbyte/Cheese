@@ -12,37 +12,46 @@ namespace Cheese.Machine
 
 	internal class VmStack {
 		//List<LuaValue> Storage;
-		List<Object> Storage;
-		int FramePointer, TopPointer;
-
+		List<LuaValue> Registers;
+		struct Frame {
+			internal int PC;
+			internal int Base;
+			internal int Top;
+		}
+		Frame CurrFrame;
+		List<Frame> Frames;
 
 		internal VmStack() {
-			//Storage = new List<LuaValue>();
-			FramePointer = 0;
-			TopPointer = 0;
+			Registers = new List<LuaValue>();
+			Frames = new List<Frame>();
+			CurrFrame.Base = 0;
+			CurrFrame.Top = 0;
 		}
 
-		public object this[int i]
+		public LuaValue this[int i]
 		{
-			get { return Storage[FramePointer+i]; }
-			set { Storage[FramePointer+i] = value; }
+			get { return Registers[CurrFrame.Base+i]; }
+			set { Registers[CurrFrame.Base+i] = value; 
+				CurrFrame.Top = (CurrFrame.Base+i > CurrFrame.Top) ? (CurrFrame.Base+i):CurrFrame.Top;
+			}
 		}
 
 		public void Clear() {
 			;// Storage.Clear();
-			FramePointer = 0;
+			CurrFrame.Base = 0;
+			CurrFrame.Top = 0;
 			//Storage.Add(new int(0));
 			//FramePointer = 1;
 		}
 
 		public void Reserve(int Space) {
-			int Needed = TopPointer + Space;
-			if(Storage.Count >= Needed) {
+			int Needed = CurrFrame.Top + Space;
+			if(Registers.Count >= Needed) {
 				return;
 			} else {
-				Storage.Capacity = Needed;
-				while(Storage.Count < Needed) {
-					Storage.Add(null);
+				Registers.Capacity = Needed;
+				while(Registers.Count < Needed) {
+					Registers.Add(/*null*/LuaNil.Nil);
 				}
 			}
 		}
@@ -50,23 +59,31 @@ namespace Cheese.Machine
 		public void PushFrame(int PC, int Size) {
 			Reserve(Size + 2);
 
-			Storage[TopPointer] = PC;
-			Storage[TopPointer+1] = FramePointer;
+			CurrFrame.PC = PC;
+			Frames.Add(CurrFrame);
 
-			FramePointer += 2;
-			TopPointer = FramePointer + Size;
+			//Storage[TopPointer] = PC;
+			//Storage[TopPointer+1] = FramePointer;
+
+			CurrFrame.Base = CurrFrame.Top;
+
+			//FramePointer += 2;
+			//TopPointer = FramePointer + Size;
 			// Track Top Pointer more exactly?
 		}
 
 		public int PopFrame() {
-			int RestoredPC = (int)Storage[FramePointer - 2];
-			int RestoredFramePointer = (int)Storage[FramePointer - 1];
+			CurrFrame = Frames[Frames.Count - 1];
+			Frames.RemoveAt(Frames.Count - 1);
 
-			TopPointer = FramePointer - 1;
-			FramePointer = RestoredFramePointer;
+			//int RestoredPC = (int)Storage[FramePointer - 2];
+			//int RestoredFramePointer = (int)Storage[FramePointer - 1];
+
+			//TopPointer = FramePointer - 1;
+			//FramePointer = RestoredFramePointer;
 			// Not actually freeing items
 
-			return RestoredPC;
+			return CurrFrame.PC;
 		}
 	
 	
@@ -102,6 +119,30 @@ namespace Cheese.Machine
 			Stack.PushFrame(ProgramCounter, Function.MaxStackSize);
 			ProgramCounter = 0;
 
+			while(true) {
+				Instruction CurrOp = Function.Instructions[ProgramCounter];
+				ProgramCounter++;
+
+				// Execute Op
+				Console.WriteLine("Executing: {0}", CurrOp.ToString());
+
+				switch(CurrOp.Code) { 
+				case Instruction.OP.LOADK: 
+					Stack[CurrOp.A] = Function.ConstantTable[CurrOp.B].Value;
+					break;
+				// ADD
+				// SUB
+				// GETGLOBAL
+				// SETGLOBAL
+				// CALL (print only)
+				
+				case Instruction.OP.RETURN:
+					break;
+				}
+
+				if(CurrOp.Code == Instruction.OP.RETURN)
+					break;
+			}
 
 			ProgramCounter = Stack.PopFrame();
 		}
