@@ -246,6 +246,7 @@ namespace Cheese
 			NewEntry.Index = CurrFunc.ConstantTable.Count;
 			//NewEntry.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.StringVal = ConstValue;
+			NewEntry.Value = new LuaString(ConstValue);
 			CurrFunc.ConstantTable.Add(NewEntry);
 			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
 			//return NewEntry.Value;
@@ -262,6 +263,7 @@ namespace Cheese
 			NewEntry.Index = CurrFunc.ConstantTable.Count;
 			//NewEntry.Value.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.NumberVal = ConstValue;
+			NewEntry.Value = new LuaNumber(ConstValue);
 			CurrFunc.ConstantTable.Add(NewEntry);
 			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
 			//return NewEntry.Value;
