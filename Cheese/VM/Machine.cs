@@ -22,6 +22,12 @@ namespace Cheese.Machine
 			TopPointer = 0;
 		}
 
+		public object this[int i]
+		{
+			get { return Storage[FramePointer+i]; }
+			set { Storage[FramePointer+i] = value; }
+		}
+
 		public void Clear() {
 			;// Storage.Clear();
 			FramePointer = 0;
@@ -49,6 +55,7 @@ namespace Cheese.Machine
 
 			FramePointer += 2;
 			TopPointer = FramePointer + Size;
+			// Track Top Pointer more exactly?
 		}
 
 		public int PopFrame() {
@@ -61,6 +68,9 @@ namespace Cheese.Machine
 
 			return RestoredPC;
 		}
+	
+	
+		
 	}
 
 	public class Machine
