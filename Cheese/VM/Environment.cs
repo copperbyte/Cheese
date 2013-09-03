@@ -8,12 +8,16 @@ namespace Cheese.Machine
 		internal Machine Machine;
 
 		// Globals?
+		// Has to be a LuaTable so it can be used in Lua code by "_G"
+		internal LuaTable Globals;
+
 		// Upvals?
 
 
 		public Environment()
 		{
-			Machine = new Machine();
+			Globals = new LuaTable();
+			Machine = new Machine(Globals);
 		}
 
 

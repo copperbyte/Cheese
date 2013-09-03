@@ -95,10 +95,12 @@ namespace Cheese.Machine
 		internal VmStack Stack;
 		int ProgramCounter;
 		// Globals table, from Envrionment?
+		private LuaTable Globals;
 		// Upval table?
 
-		public Machine()
+		public Machine(LuaTable Globals) 
 		{
+			this.Globals = Globals;
 			Stack = new VmStack();
 			ProgramCounter = 0;
 		}
@@ -149,8 +151,14 @@ namespace Cheese.Machine
 					break;
 				// ADD
 				// SUB
-				// GETGLOBAL
-				// SETGLOBAL
+				// GETGLOBAL  // R(A) := Gbl[Kst(Bx)]
+				case Instruction.OP.GETGLOBAL:
+					Stack[CurrOp.A] = Globals[Function.ConstantTable[CurrOp.B].Value];
+					break;                  
+				// SETGLOBAL  // Gbl[Kst(Bx)] := R(A)
+				case Instruction.OP.SETGLOBAL:
+					Globals[Function.ConstantTable[CurrOp.B].Value] = Stack[CurrOp.A];
+					break;
 				// CALL (print only)
 				
 				case Instruction.OP.RETURN:

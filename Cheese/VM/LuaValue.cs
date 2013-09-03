@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Cheese
 {
@@ -92,6 +93,53 @@ namespace Cheese
 		}
 	}
 
+	public class LuaTable : LuaValue {
+
+		//public static readonly LuaTable Default = new LuaTable();
+
+		private List<LuaValue> Array;
+		// That the index is a LuaValue makes me unhappy, it means wrapping
+		// everything. Inside the machine everything will be wrapped anyway,
+		// but the interface out won't all be wrapped.
+		// Make Key an Int, and do the calls to GetHashCode myself? 
+		private Dictionary<LuaValue, LuaValue> HashMap;
+
+		public LuaTable() {
+			;
+		}
+
+		public override string ToString() {
+			return "lua table tostring";
+		}
+
+		public LuaValue this[int Index]
+		{
+			get { return Array[Index]; }
+			set { Array[Index] = value; }
+		}
+
+		public LuaValue this[LuaValue Key]
+		{
+			get { 
+				if(HashMap == null)
+					return LuaNil.Nil;
+				if(HashMap.ContainsKey(Key))
+					return HashMap[Key];
+				else
+					return LuaNil.Nil;
+			}
+			set { 
+				if(HashMap == null)
+					HashMap = new Dictionary<LuaValue, LuaValue>();
+				if(Key == LuaNil.Nil)
+					HashMap.Remove(Key);
+				else
+					HashMap[Key] = value; 
+			}
+		}
+
+
+	}
 
 }
 

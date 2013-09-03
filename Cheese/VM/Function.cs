@@ -20,6 +20,11 @@ namespace Cheese.Machine
 		internal int StartPC, EndPC;
 	}
 
+	class UpvalEntry {
+		internal int Index;
+		internal string Name;
+	}
+
 	class Function {
 
 
@@ -64,10 +69,7 @@ namespace Cheese.Machine
 
 		internal void PrintConstants() {
 			foreach(ConstEntry Const in ConstantTable) {
-				if(Const.StringVal != null)
-					Console.WriteLine("CS  {0:00} := {1}", Const.Index, Const.StringVal);
-				else
-					Console.WriteLine("CN  {0:00} := {1}", Const.Index, Const.NumberVal);
+				Console.WriteLine("CV  {0:00} := {1}", Const.Index, Const.Value.ToString());
 			}
 		}
 
