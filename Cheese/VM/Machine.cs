@@ -17,6 +17,7 @@ namespace Cheese.Machine
 			internal int PC;
 			internal int Base;
 			internal int Top;
+			internal Function Func;
 		}
 		Frame CurrFrame;
 		List<Frame> Frames;
@@ -56,6 +57,7 @@ namespace Cheese.Machine
 			}
 		}
 
+		/*
 		public void PushFrame(int PC, int Size) {
 			Reserve(Size + 2);
 
@@ -70,6 +72,16 @@ namespace Cheese.Machine
 			//FramePointer += 2;
 			//TopPointer = FramePointer + Size;
 			// Track Top Pointer more exactly?
+		}*/
+
+		public void PushFrame(int PC, Function Func) {
+			Reserve(Func.MaxStackSize);
+
+			CurrFrame.PC = PC;
+			Frames.Add(CurrFrame);
+
+			CurrFrame.Base = CurrFrame.Top;
+			CurrFrame.Func = Func;
 		}
 
 		public int PopFrame() {
@@ -86,7 +98,11 @@ namespace Cheese.Machine
 			return CurrFrame.PC;
 		}
 	
-	
+		internal Function Func {
+			get {
+				return CurrFrame.Func;
+			}
+		}
 		
 	}
 
@@ -118,11 +134,18 @@ namespace Cheese.Machine
 
 		internal void ExecuteFunction(Function Function) {
 
-			Stack.PushFrame(ProgramCounter, Function.MaxStackSize);
+			Stack.PushFrame(ProgramCounter, Function);
 			ProgramCounter = 0;
 
+			ExecuteMachine();
+
+			ProgramCounter = Stack.PopFrame();
+		}
+
+		private void ExecuteMachine() {
+
 			while(true) {
-				Instruction CurrOp = Function.Instructions[ProgramCounter];
+				Instruction CurrOp = Stack.Func.Instructions[ProgramCounter];
 				ProgramCounter++;
 
 				// Execute Op
@@ -135,7 +158,7 @@ namespace Cheese.Machine
 					break;
 
 				case Instruction.OP.LOADK: 
-					Stack[CurrOp.A] = Function.ConstantTable[CurrOp.B].Value;
+					Stack[CurrOp.A] = Stack.Func.ConstantTable[CurrOp.B].Value;
 					break;
 				
 				case Instruction.OP.LOADBOOL:
@@ -149,29 +172,76 @@ namespace Cheese.Machine
 						Stack[i] = LuaNil.Nil;
 					}
 					break;
-				// ADD
-				// SUB
+
 				// GETGLOBAL  // R(A) := Gbl[Kst(Bx)]
 				case Instruction.OP.GETGLOBAL:
-					Stack[CurrOp.A] = Globals[Function.ConstantTable[CurrOp.B].Value];
+					Stack[CurrOp.A] = Globals[Stack.Func.ConstantTable[CurrOp.B].Value];
 					break;                  
 				// SETGLOBAL  // Gbl[Kst(Bx)] := R(A)
 				case Instruction.OP.SETGLOBAL:
-					Globals[Function.ConstantTable[CurrOp.B].Value] = Stack[CurrOp.A];
+					Globals[Stack.Func.ConstantTable[CurrOp.B].Value] = Stack[CurrOp.A];
 					break;
+
+
+				// ADD   // R(A) := RK(B) + RK(C)
+				case Instruction.OP.ADD:
+				case Instruction.OP.SUB:
+				case Instruction.OP.MUL:
+				case Instruction.OP.DIV:
+				case Instruction.OP.MOD:
+				case Instruction.OP.POW:
+					{
+						LuaNumber F, S;
+						F = GetRK(CurrOp.B, CurrOp.rkB) as LuaNumber;
+						S = GetRK(CurrOp.C, CurrOp.rkC) as LuaNumber;
+							
+						double dR = default(double);
+						switch(CurrOp.Code) { 
+						case Instruction.OP.ADD:
+							dR = (F.Number + S.Number);
+							break;
+						case Instruction.OP.SUB:
+							dR = (F.Number - S.Number);
+							break;
+						case Instruction.OP.MUL:
+							dR = (F.Number * S.Number);
+							break;
+						case Instruction.OP.DIV:
+							dR = (F.Number / S.Number);
+							break;
+						case Instruction.OP.MOD:
+							dR = (F.Number % S.Number);
+							break;
+						case Instruction.OP.POW:
+							dR = (Math.Pow(F.Number , S.Number));
+							break;
+						}
+						Stack[CurrOp.A] = new LuaNumber(dR);
+						break;
+					}
+
+				
+				
 				// CALL (print only)
 				
 				case Instruction.OP.RETURN:
-					break;
+					break; // not just break, pop, etc
 				}
 
 				if(CurrOp.Code == Instruction.OP.RETURN)
 					break;
 			}
 
-			ProgramCounter = Stack.PopFrame();
+
 		}
 
+
+		private LuaValue GetRK(int Index, bool RK) {
+			if(RK)
+				return Stack.Func.ConstantTable[Index].Value;
+			else 
+				return Stack[Index];
+		}
 	}
 
 
