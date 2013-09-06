@@ -220,9 +220,54 @@ namespace Cheese.Machine
 						break;
 					}
 
-				
-				
+								
 				// CALL (print only)
+				case Instruction.OP.CALL:
+					{
+						LuaValue FuncValue = Stack[CurrOp.A];
+
+						if(FuncValue is LuaDelegate) {
+							LuaDelegate FuncDelegate = FuncValue as LuaDelegate;
+
+							LuaTable Arguments = new LuaTable();
+							
+							if(CurrOp.B == 0) {
+								; // Handle Var Arg case
+							} else {
+								for(int i = CurrOp.A+1; i < CurrOp.A+CurrOp.B; i++) {
+									Arguments.Add(Stack[i]);
+								}
+							}
+
+							LuaValue ReturnValue = null;
+							ReturnValue = FuncDelegate.Call(Arguments);
+							// Decode ReturnValue, assign return parts
+
+							if(CurrOp.C == 1) {
+								; // Do nothing
+							} else if(CurrOp.C == 0) {
+								; // Handle Var Returns
+							} else if(CurrOp.C == 2) {
+								if(ReturnValue is LuaTable) {
+									LuaTable ReturnTable = ReturnValue as LuaTable;
+									if(ReturnTable.Length == 1)
+										ReturnValue = ReturnTable[0];
+								}
+								Stack[CurrOp.A] = ReturnValue;
+							}
+							else {
+								LuaTable ReturnTable = ReturnValue as LuaTable;
+								int ri = 0;
+								for(int i = CurrOp.A; i < CurrOp.A+CurrOp.C-1; i++) {
+									Stack[i] = ReturnTable[ri]; 
+									ri++;
+								}
+							}
+						}
+						// else is LuaClosure
+
+						break;
+					}
 				
 				case Instruction.OP.RETURN:
 					break; // not just break, pop, etc
