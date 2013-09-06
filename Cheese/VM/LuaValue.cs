@@ -54,6 +54,19 @@ namespace Cheese
 			return Text;
 		}
 
+		public override bool Equals(Object Other) {
+			if(Other == null)
+				return false;
+			else if(Other is string) 
+				return this.Text.Equals(Other);
+			else if(Other is LuaString)
+				return this.Text == (Other as LuaString).Text;
+			else
+				return false;
+		}
+		public override int GetHashCode() {
+			return Text.GetHashCode();
+		}
 	}
 
 	public class LuaNumber : LuaValue {
@@ -62,7 +75,7 @@ namespace Cheese
 
 		public double Number {
 			get;
-			private set;
+			internal set;
 		}
 
 		public LuaNumber(double Value) {
@@ -71,6 +84,13 @@ namespace Cheese
 
 		public override string ToString() {
 			return Number.ToString();
+		}
+
+		public bool Equals(LuaNumber Other) {
+			return this.Number == Other.Number;
+		}
+		public override int GetHashCode() {
+			return Number.GetHashCode();
 		}
 
 	}
@@ -90,6 +110,13 @@ namespace Cheese
 
 		public override string ToString() {
 			return Integer.ToString();
+		}
+
+		public bool Equals(LuaInteger Other) {
+			return this.Integer == Other.Integer;
+		}
+		public override int GetHashCode() {
+			return Integer.GetHashCode();
 		}
 	}
 
@@ -114,7 +141,13 @@ namespace Cheese
 
 		public LuaValue this[int Index]
 		{
-			get { return Array[Index]; }
+			get { 
+				if(Array == null) 
+					return LuaNil.Nil;
+				else if(Array.Count >= Index)
+					return LuaNil.Nil;
+				else
+					return Array[Index]; }
 			set { Array[Index] = value; }
 		}
 
@@ -131,13 +164,62 @@ namespace Cheese
 			set { 
 				if(HashMap == null)
 					HashMap = new Dictionary<LuaValue, LuaValue>();
-				if(Key == LuaNil.Nil)
+				if(Key == LuaNil.Nil || value == LuaNil.Nil)
 					HashMap.Remove(Key);
 				else
 					HashMap[Key] = value; 
 			}
 		}
 
+
+		public int Length {
+			get {
+				if(Array == null)
+					return 0;
+				return Array.Count;
+			}
+		}
+
+		public int Count {
+			get {
+				if(HashMap == null)
+					return 0;
+				return HashMap.Count;
+			}
+		}
+
+		public IEnumerable<LuaValue> EnumerableArray
+		{
+			get { return this.Array; }
+		}
+
+
+		public void Add(LuaValue Item) {
+			if(Array == null)
+				Array = new List<LuaValue>();
+			Array.Add(Item);
+		}
+
+	}
+
+
+	// LuaClosure , a Function and an UpVal storage wrapped
+
+	// LuaDelegate , a wrapper for a C# function
+	public class LuaDelegate : LuaValue {
+
+		public delegate LuaValue Delegate(LuaTable Arguments);
+
+		internal Delegate NativeDelegate;
+
+		public LuaDelegate(Delegate Value) {
+			NativeDelegate = Value;
+		}
+
+
+		public LuaValue Call(LuaTable Arguments) {
+			return NativeDelegate(Arguments);
+		}
 
 	}
 
