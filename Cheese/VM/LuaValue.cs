@@ -86,8 +86,15 @@ namespace Cheese
 			return Number.ToString();
 		}
 
-		public bool Equals(LuaNumber Other) {
-			return this.Number == Other.Number;
+		public override bool Equals(Object Other) {
+			if(Other == null)
+				return false;
+			else if(Other is double || Other is float) 
+				return this.Number.Equals(Other);
+			else if(Other is LuaNumber)
+				return this.Number == (Other as LuaNumber).Number;
+			else
+				return false;
 		}
 		public override int GetHashCode() {
 			return Number.GetHashCode();
@@ -112,8 +119,15 @@ namespace Cheese
 			return Integer.ToString();
 		}
 
-		public bool Equals(LuaInteger Other) {
-			return this.Integer == Other.Integer;
+		public override bool Equals(Object Other) {
+			if(Other == null)
+				return false;
+			else if(Other is double || Other is float) 
+				return this.Integer.Equals(Other);
+			else if(Other is LuaInteger)
+				return this.Integer == (Other as LuaInteger).Integer;
+			else
+				return false;
 		}
 		public override int GetHashCode() {
 			return Integer.GetHashCode();
