@@ -218,6 +218,17 @@ namespace Cheese
 
 
 	// LuaClosure , a Function and an UpVal storage wrapped
+	public class LuaClosure : LuaValue {
+
+		internal Cheese.Machine.Function Function;
+		// UpVal storage?
+
+		internal LuaClosure(Cheese.Machine.Function Func) {
+			this.Function = Func;
+		}
+
+	}
+
 
 	// LuaDelegate , a wrapper for a C# function
 	public class LuaDelegate : LuaValue {
