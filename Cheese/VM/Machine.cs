@@ -46,7 +46,7 @@ namespace Cheese.Machine
 		}
 
 		public void Reserve(int Space) {
-			int Needed = CurrFrame.Top + Space;
+			int Needed = CurrFrame.Top + Space+1;
 			if(Registers.Count >= Needed) {
 				return;
 			} else {
@@ -75,18 +75,28 @@ namespace Cheese.Machine
 		}*/
 
 		public void PushFrame(int PC, Function Func, int ArgBase) {
-			Reserve(Func.MaxStackSize - ArgBase);
+			Reserve(Func.MaxStackSize - ArgBase + 1);
 
 			CurrFrame.PC = PC;
 			Frames.Add(CurrFrame);
 
-			CurrFrame.Base = CurrFrame.Base + ArgBase + 1; //CurrFrame.Top;
+			int NewBase = CurrFrame.Base + ArgBase + 1;
+			Console.WriteLine("Stack.PushFrame  Base {0} => {1} ", CurrFrame.Base, NewBase);
+			CurrFrame.Base = NewBase; //CurrFrame.Top;
 			CurrFrame.Func = Func;
 		}
 
 		public int PopFrame() {
-			CurrFrame = Frames[Frames.Count - 1];
-			Frames.RemoveAt(Frames.Count - 1);
+			Console.Write("Stack.PopFrame  Base {0}", CurrFrame.Base);
+			if(Frames.Count == 0) {
+				CurrFrame.Base = 0;
+				CurrFrame.Top = 0;
+				CurrFrame.Func = null;
+			} else {
+				CurrFrame = Frames[Frames.Count - 1];
+				Frames.RemoveAt(Frames.Count - 1);
+			}
+			Console.WriteLine(" => {0} ", CurrFrame.Base);
 
 			//int RestoredPC = (int)Storage[FramePointer - 2];
 			//int RestoredFramePointer = (int)Storage[FramePointer - 1];
@@ -132,6 +142,9 @@ namespace Cheese.Machine
 			;//
 
 			Stack.Clear();
+
+			Stack.Reserve(1);
+			Stack[0] = new LuaClosure(Chunk.RootFunc);
 			ProgramCounter = 0;
 
 			ExecuteFunction(Chunk.RootFunc);
@@ -151,7 +164,8 @@ namespace Cheese.Machine
 		private void ExecuteMachine() {
 
 			while(true) {
-				if(ProgramCounter >= Stack.Func.Instructions.Count)
+				if(Stack == null || Stack.Func == null || 
+				   ProgramCounter >= Stack.Func.Instructions.Count)
 					break;
 
 				Instruction CurrOp = Stack.Func.Instructions[ProgramCounter];
@@ -160,7 +174,7 @@ namespace Cheese.Machine
 				// Execute Op
 				Console.WriteLine("Executing: {0}", CurrOp.ToString());
 
-				switch(CurrOp.Code) { 
+				switch(CurrOp.Code) {
 
 				case Instruction.OP.MOVE:
 					Stack[CurrOp.A] = Stack[CurrOp.B];
@@ -303,7 +317,7 @@ namespace Cheese.Machine
 						; // no return
 					} else if(CurrOp.B >= 2) {
 						int si = -1;
-						for(int ri = CurrOp.A; ri < CurrOp.A+CurrOp.B-2; ri++) {
+						for(int ri = CurrOp.A; ri <= CurrOp.A+CurrOp.B-2; ri++) {
 							Stack[si] = Stack[ri]; 
 							si++;
 						}
