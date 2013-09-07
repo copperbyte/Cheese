@@ -62,6 +62,11 @@ namespace Cheese.Machine
 			PrintConstants();
 			PrintLocals();
 			PrintInstructions();
+
+			foreach(Function SubFunc in SubFunctions) {
+				Console.WriteLine();
+				SubFunc.Print();
+			}
 		}
 
 		internal void PrintHeader() {
