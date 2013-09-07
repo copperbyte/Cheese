@@ -74,13 +74,13 @@ namespace Cheese.Machine
 			// Track Top Pointer more exactly?
 		}*/
 
-		public void PushFrame(int PC, Function Func) {
-			Reserve(Func.MaxStackSize);
+		public void PushFrame(int PC, Function Func, int ArgBase) {
+			Reserve(Func.MaxStackSize - ArgBase);
 
 			CurrFrame.PC = PC;
 			Frames.Add(CurrFrame);
 
-			CurrFrame.Base = CurrFrame.Top;
+			CurrFrame.Base = CurrFrame.Base + ArgBase + 1; //CurrFrame.Top;
 			CurrFrame.Func = Func;
 		}
 
@@ -101,6 +101,12 @@ namespace Cheese.Machine
 		internal Function Func {
 			get {
 				return CurrFrame.Func;
+			}
+		}
+
+		internal int Top {
+			get {
+				return (CurrFrame.Top - CurrFrame.Base);
 			}
 		}
 		
@@ -134,7 +140,7 @@ namespace Cheese.Machine
 
 		internal void ExecuteFunction(Function Function) {
 
-			Stack.PushFrame(ProgramCounter, Function);
+			Stack.PushFrame(ProgramCounter, Function, 0);
 			ProgramCounter = 0;
 
 			ExecuteMachine();
@@ -145,6 +151,9 @@ namespace Cheese.Machine
 		private void ExecuteMachine() {
 
 			while(true) {
+				if(ProgramCounter >= Stack.Func.Instructions.Count)
+					break;
+
 				Instruction CurrOp = Stack.Func.Instructions[ProgramCounter];
 				ProgramCounter++;
 
@@ -189,93 +198,125 @@ namespace Cheese.Machine
 				case Instruction.OP.MUL:
 				case Instruction.OP.DIV:
 				case Instruction.OP.MOD:
-				case Instruction.OP.POW:
-					{
-						LuaNumber F, S;
-						F = GetRK(CurrOp.B, CurrOp.rkB) as LuaNumber;
-						S = GetRK(CurrOp.C, CurrOp.rkC) as LuaNumber;
-							
-						double dR = default(double);
-						switch(CurrOp.Code) { 
-						case Instruction.OP.ADD:
-							dR = (F.Number + S.Number);
-							break;
-						case Instruction.OP.SUB:
-							dR = (F.Number - S.Number);
-							break;
-						case Instruction.OP.MUL:
-							dR = (F.Number * S.Number);
-							break;
-						case Instruction.OP.DIV:
-							dR = (F.Number / S.Number);
-							break;
-						case Instruction.OP.MOD:
-							dR = (F.Number % S.Number);
-							break;
-						case Instruction.OP.POW:
-							dR = (Math.Pow(F.Number , S.Number));
-							break;
-						}
-						Stack[CurrOp.A] = new LuaNumber(dR);
+				case Instruction.OP.POW: {
+					LuaNumber F, S;
+					F = GetRK(CurrOp.B, CurrOp.rkB) as LuaNumber;
+					S = GetRK(CurrOp.C, CurrOp.rkC) as LuaNumber;
+						
+					double dR = default(double);
+					switch(CurrOp.Code) { 
+					case Instruction.OP.ADD:
+						dR = (F.Number + S.Number);
+						break;
+					case Instruction.OP.SUB:
+						dR = (F.Number - S.Number);
+						break;
+					case Instruction.OP.MUL:
+						dR = (F.Number * S.Number);
+						break;
+					case Instruction.OP.DIV:
+						dR = (F.Number / S.Number);
+						break;
+					case Instruction.OP.MOD:
+						dR = (F.Number % S.Number);
+						break;
+					case Instruction.OP.POW:
+						dR = (Math.Pow(F.Number , S.Number));
 						break;
 					}
+					Stack[CurrOp.A] = new LuaNumber(dR);
+					break;
+				}
 
 								
 				// CALL (print only)
-				case Instruction.OP.CALL:
-					{
-						LuaValue FuncValue = Stack[CurrOp.A];
+				case Instruction.OP.CALL: {
+					LuaValue FuncValue = Stack[CurrOp.A];
 
-						if(FuncValue is LuaDelegate) {
-							LuaDelegate FuncDelegate = FuncValue as LuaDelegate;
+					if(FuncValue is LuaDelegate) {
+						LuaDelegate FuncDelegate = FuncValue as LuaDelegate;
 
-							LuaTable Arguments = new LuaTable();
-							
-							if(CurrOp.B == 0) {
-								; // Handle Var Arg case
-							} else {
-								for(int i = CurrOp.A+1; i < CurrOp.A+CurrOp.B; i++) {
-									Arguments.Add(Stack[i]);
-								}
-							}
-
-							LuaValue ReturnValue = null;
-							ReturnValue = FuncDelegate.Call(Arguments);
-							// Decode ReturnValue, assign return parts
-
-							if(CurrOp.C == 1) {
-								; // Do nothing
-							} else if(CurrOp.C == 0) {
-								; // Handle Var Returns
-							} else if(CurrOp.C == 2) {
-								if(ReturnValue is LuaTable) {
-									LuaTable ReturnTable = ReturnValue as LuaTable;
-									if(ReturnTable.Length == 1)
-										ReturnValue = ReturnTable[0];
-								}
-								Stack[CurrOp.A] = ReturnValue;
-							}
-							else {
-								LuaTable ReturnTable = ReturnValue as LuaTable;
-								int ri = 0;
-								for(int i = CurrOp.A; i < CurrOp.A+CurrOp.C-1; i++) {
-									Stack[i] = ReturnTable[ri]; 
-									ri++;
-								}
+						LuaTable Arguments = new LuaTable();
+						
+						if(CurrOp.B == 0) {
+							; // Handle Var Arg case
+						} else {
+							for(int i = CurrOp.A+1; i < CurrOp.A+CurrOp.B; i++) {
+								Arguments.Add(Stack[i]);
 							}
 						}
-						// else is LuaClosure
 
-						break;
+						LuaValue ReturnValue = null;
+						ReturnValue = FuncDelegate.Call(Arguments);
+						// Decode ReturnValue, assign return parts
+
+						if(CurrOp.C == 1) {
+							; // Do nothing
+						} else if(CurrOp.C == 0) {
+							; // Handle Var Returns
+						} else if(CurrOp.C == 2) {
+							if(ReturnValue is LuaTable) {
+								LuaTable ReturnTable = ReturnValue as LuaTable;
+								if(ReturnTable.Length == 1)
+									ReturnValue = ReturnTable[0];
+							}
+							Stack[CurrOp.A] = ReturnValue;
+						} else {
+							LuaTable ReturnTable = ReturnValue as LuaTable;
+							int ri = 0;
+							for(int i = CurrOp.A; i < CurrOp.A+CurrOp.C-1; i++) {
+								Stack[i] = ReturnTable[ri]; 
+								ri++;
+							}
+						}
+					} 
+					else if(FuncValue is LuaClosure) {
+						LuaClosure ClosureValue = FuncValue as LuaClosure;
+
+						// Capture Args
+
+						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CurrOp.A);
+						ProgramCounter = 0;
+						// UpVal storage setup?
+
+						// Trust that RETURN will handle the returns
+						continue;
 					}
+
+					break;
+				}
 				
-				case Instruction.OP.RETURN:
+				// CLOSURE    R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))
+				case Instruction.OP.CLOSURE: {
+					Function ClosureFunc = Stack.Func.SubFunctions[CurrOp.B];
+					LuaClosure Closure = new LuaClosure(ClosureFunc);
+					Stack[CurrOp.A] = Closure;
+
+					continue;
+				}
+
+				case Instruction.OP.RETURN: {
+
+					if(CurrOp.B == 0) {
+						; // var arg
+					} else if(CurrOp.B == 1) {
+						; // no return
+					} else if(CurrOp.B >= 2) {
+						int si = -1;
+						for(int ri = CurrOp.A; ri < CurrOp.A+CurrOp.B-2; ri++) {
+							Stack[si] = Stack[ri]; 
+							si++;
+						}
+					}
+
+					ProgramCounter = Stack.PopFrame();
+
 					break; // not just break, pop, etc
 				}
 
-				if(CurrOp.Code == Instruction.OP.RETURN)
-					break;
-			}
+				} // end switch
+
+			} // Instruction While Loop
 
 
 		}
