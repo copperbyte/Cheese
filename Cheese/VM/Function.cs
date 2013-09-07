@@ -38,6 +38,7 @@ namespace Cheese.Machine
 		//internal List<LocalEntry> LocalTable;
 		internal List< List<LocalEntry> > LocalScopes;
 		internal List<LocalEntry> FullLocalTable;
+		internal List<Function> SubFunctions;
 
 		internal List<Instruction> Instructions;
 
@@ -51,6 +52,8 @@ namespace Cheese.Machine
 			//LocalTable = new List<LocalEntry>();
 			LocalScopes = new List< List<LocalEntry> >();
 			FullLocalTable = new List<LocalEntry>();
+			SubFunctions = new List<Function>();
+
 			Instructions = new List<Instruction>();
 		}
 
