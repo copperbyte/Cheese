@@ -83,7 +83,7 @@ namespace Cheese
 	{ 
 
 		Machine.Function CurrFunc;
-		List<Machine.Function> Functions;
+		//List<Machine.Function> Functions;
 		Stack<Machine.Function> FunctionStack;
 
 		List<CompilerValue> Globals;
@@ -91,7 +91,7 @@ namespace Cheese
 
 		public Compiler()
 		{
-			Functions = new List<Function>();
+			//Functions = new List<Function>();
 			FunctionStack = new Stack<Function>();
 			Globals = new List<CompilerValue>();
 		}
@@ -120,14 +120,15 @@ namespace Cheese
 			Result.RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
 			PopLocalScope();
 
-			Functions.Insert(0, Result.RootFunc);
+			//Functions.Insert(0, Result.RootFunc);
 
 			FunctionStack.Pop();
 
-			foreach(Function Func in Functions) {
-				Console.WriteLine("Function:  ");
-				Func.Print();
-			}
+			////foreach(Function Func in Functions) {
+			//	Console.WriteLine("Function:  ");
+			//	Func.Print();
+			//}
+			Result.RootFunc.Print();
 
 
 			return Result;
@@ -781,14 +782,19 @@ namespace Cheese
 
 			PopLocalScope();
 
-			Functions.Add(NewFunc);
+			Function CompletedFunction = CurrFunc;
+
+			//Functions.Add(NewFunc);
 			FunctionStack.Pop();  // we are done
 			CurrFunc = FunctionStack.Peek();
+
+			CurrFunc.SubFunctions.Add(CompletedFunction);
+
 
 			CompilerValue GVal = GetGlobalIndex(FuncNameStr);
 			CompilerValue ClosureReg = new CompilerValue(GetFreeRegister());
 			//int UpValCount = 0;
-			int FunctionNumber = Functions.Count - 1;
+			int FunctionNumber = CurrFunc.SubFunctions.Count - 1;
 			CurrFunc.Instructions.Add(Instruction.OP.CLOSURE, ClosureReg.Index, FunctionNumber);
 			EmitAssignOp(GVal, ClosureReg);
 			//CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, ClosureReg.Index, GVal.Index);
