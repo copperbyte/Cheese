@@ -149,6 +149,13 @@ namespace Cheese
 			;
 		}
 
+		internal LuaTable(int ArraySize=0, int HashSize=0) {
+			if(ArraySize > 0)
+				Array = new List<LuaValue>(ArraySize);
+			if(HashSize > 0)
+				HashMap = new Dictionary<LuaValue, LuaValue>(HashSize);
+		}
+
 		public override string ToString() {
 			return "lua table tostring";
 		}

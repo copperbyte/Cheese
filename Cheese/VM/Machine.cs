@@ -205,6 +205,46 @@ namespace Cheese.Machine
 					Globals[Stack.Func.ConstantTable[CurrOp.B].Value] = Stack[CurrOp.A];
 					break;
 
+				// NEWTABLE
+				case Instruction.OP.NEWTABLE: {
+					Stack[CurrOp.A] = new LuaTable(CurrOp.B, CurrOp.C);
+					continue; 
+				}
+
+				// GETTABLE   //  R(A) := R(B)[RK(C)]
+				case Instruction.OP.GETTABLE: {
+					LuaTable TableValue = Stack[CurrOp.B] as LuaTable;
+					LuaValue KeyValue = null;
+					if(CurrOp.rkC) {
+						KeyValue = Stack.Func.ConstantTable[CurrOp.C].Value;
+					} else {
+						KeyValue = Stack[CurrOp.C];
+					}
+
+					LuaValue ResultValue = TableValue[KeyValue];
+					Stack[CurrOp.A] = ResultValue;
+					continue;
+				}
+				// SETTABLE   //  R(A)[RK(B)] := RK(C)
+				case Instruction.OP.SETTABLE: {
+					LuaValue SrcValue = null;
+					if(CurrOp.rkC) {
+						SrcValue = Stack.Func.ConstantTable[CurrOp.C].Value;
+					} else {
+						SrcValue = Stack[CurrOp.C];
+					}
+
+					LuaTable TableValue = Stack[CurrOp.A] as LuaTable;
+					LuaValue KeyValue = null;
+					if(CurrOp.rkB) {
+						KeyValue = Stack.Func.ConstantTable[CurrOp.B].Value;
+					} else {
+						KeyValue = Stack[CurrOp.B];
+					}
+
+					TableValue[KeyValue] = SrcValue;
+					continue;
+				}
 
 				// ADD   // R(A) := RK(B) + RK(C)
 				case Instruction.OP.ADD:
