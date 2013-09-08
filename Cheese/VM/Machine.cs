@@ -210,7 +210,19 @@ namespace Cheese.Machine
 					Stack[CurrOp.A] = new LuaTable(CurrOp.B, CurrOp.C);
 					continue; 
 				}
+				
+				// SETLIST   // R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
+				case Instruction.OP.SETLIST: {
+					LuaTable TableValue = Stack[CurrOp.A] as LuaTable;
 
+					for(int si = CurrOp.A+1, di = CurrOp.C-1; si <= CurrOp.B; si++, di++) {
+
+						TableValue[di] = Stack[si];
+					}
+
+					continue;
+				}
+				
 				// GETTABLE   //  R(A) := R(B)[RK(C)]
 				case Instruction.OP.GETTABLE: {
 					LuaTable TableValue = Stack[CurrOp.B] as LuaTable;
