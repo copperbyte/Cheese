@@ -150,8 +150,12 @@ namespace Cheese
 		}
 
 		internal LuaTable(int ArraySize=0, int HashSize=0) {
-			if(ArraySize > 0)
-				Array = new List<LuaValue>(ArraySize);
+			if(ArraySize > 0) {
+				Array = new List<LuaValue>(ArraySize); 
+				for(int i = 0; i < ArraySize; i++) {
+					Array.Add(LuaNil.Nil);
+				}
+			}
 			if(HashSize > 0)
 				HashMap = new Dictionary<LuaValue, LuaValue>(HashSize);
 		}
@@ -165,7 +169,7 @@ namespace Cheese
 			get { 
 				if(Array == null) 
 					return LuaNil.Nil;
-				else if(Array.Count >= Index)
+				else if(Array.Count <= Index)
 					return LuaNil.Nil;
 				else
 					return Array[Index]; }
@@ -175,6 +179,15 @@ namespace Cheese
 		public LuaValue this[LuaValue Key]
 		{
 			get { 
+
+				if(Key is LuaNumber) {
+					double NumVal = (Key as LuaNumber).Number;
+					if(NumVal % 1 == 0) {
+						int IntVal = (int)NumVal;
+						return this[IntVal];
+					}
+				}
+
 				if(HashMap == null)
 					return LuaNil.Nil;
 				if(HashMap.ContainsKey(Key))
@@ -183,6 +196,16 @@ namespace Cheese
 					return LuaNil.Nil;
 			}
 			set { 
+
+				if(Key is LuaNumber) {
+					double NumVal = (Key as LuaNumber).Number;
+					if(NumVal % 1 == 0) {
+						int IntVal = (int)NumVal;
+						this[IntVal] = value;
+						return;
+					}
+				}
+
 				if(HashMap == null)
 					HashMap = new Dictionary<LuaValue, LuaValue>();
 				if(Key == LuaNil.Nil || value == LuaNil.Nil)
