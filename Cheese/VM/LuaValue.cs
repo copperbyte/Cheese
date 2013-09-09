@@ -164,16 +164,17 @@ namespace Cheese
 			return "lua table tostring";
 		}
 
+		// Lua is 1-based, and so is this.
 		public LuaValue this[int Index]
 		{
 			get { 
 				if(Array == null) 
 					return LuaNil.Nil;
-				else if(Array.Count <= Index)
+				else if(Array.Count <= Index-1)
 					return LuaNil.Nil;
 				else
-					return Array[Index]; }
-			set { Array[Index] = value; }
+					return Array[Index-1]; }
+			set { Array[Index-1] = value; }
 		}
 
 		public LuaValue this[LuaValue Key]

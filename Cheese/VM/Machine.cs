@@ -214,12 +214,9 @@ namespace Cheese.Machine
 				// SETLIST   // R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
 				case Instruction.OP.SETLIST: {
 					LuaTable TableValue = Stack[CurrOp.A] as LuaTable;
-
-					for(int si = CurrOp.A+1, di = CurrOp.C-1; si <= CurrOp.B; si++, di++) {
-
+					for(int si = CurrOp.A+1, di = CurrOp.C; si <= CurrOp.B; si++, di++) {
 						TableValue[di] = Stack[si];
 					}
-
 					continue;
 				}
 				
@@ -295,7 +292,7 @@ namespace Cheese.Machine
 				}
 
 								
-				// CALL (print only)
+				// CALL
 				case Instruction.OP.CALL: {
 					LuaValue FuncValue = Stack[CurrOp.A];
 
