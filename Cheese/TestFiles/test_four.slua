@@ -4,7 +4,7 @@
 array_tab = { "apple", "grape", "orange" };
 hash_tab = { STR=1, AGI=2, INT=3 };
 
-mix_tab = { "STR","AGI","INT", STR=1, AGI=2, INT=3, BLAH, BLAHMORE };
+--mix_tab = { "STR","AGI","INT", STR=1, AGI=2, INT=3, BLAH, BLAHMORE };
 
 local x = array_tab[ hash_tab.STR ];
 local y = array_tab[ hash_tab.AGI ];

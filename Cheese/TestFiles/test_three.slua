@@ -7,4 +7,4 @@ tab['y'] = 2;
 zp = 'z';
 tab[zp] = tab.x + tab['y'];
 
---print(tab.x,'+',tab['y'],'=',(tab.x+tab['y']));
+print(tab.x,'+',tab['y'],'=',(tab.x+tab['y']));

@@ -50,3 +50,8 @@ function non_comp_if()
 end
 
 ----
+
+assign_comp();
+if_else_if();
+eq_ne();
+non_comp_if();
