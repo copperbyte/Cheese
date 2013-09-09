@@ -290,8 +290,16 @@ namespace Cheese.Machine
 					Stack[CurrOp.A] = new LuaNumber(dR);
 					break;
 				}
+				
+				// TEST
+				
 
-								
+				// JMP  // PC += sBx // FIXME: Spec says B, Cheese uses A?
+				case Instruction.OP.JMP: {
+					ProgramCounter += CurrOp.A;
+					continue;
+				}
+
 				// CALL
 				case Instruction.OP.CALL: {
 					LuaValue FuncValue = Stack[CurrOp.A];
