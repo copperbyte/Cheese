@@ -223,34 +223,16 @@ namespace Cheese.Machine
 				// GETTABLE   //  R(A) := R(B)[RK(C)]
 				case Instruction.OP.GETTABLE: {
 					LuaTable TableValue = Stack[CurrOp.B] as LuaTable;
-					LuaValue KeyValue = null;
-					if(CurrOp.rkC) {
-						KeyValue = Stack.Func.ConstantTable[CurrOp.C].Value;
-					} else {
-						KeyValue = Stack[CurrOp.C];
-					}
-
+					LuaValue KeyValue = GetRK(CurrOp.C, CurrOp.rkC);
 					LuaValue ResultValue = TableValue[KeyValue];
 					Stack[CurrOp.A] = ResultValue;
 					continue;
 				}
 				// SETTABLE   //  R(A)[RK(B)] := RK(C)
 				case Instruction.OP.SETTABLE: {
-					LuaValue SrcValue = null;
-					if(CurrOp.rkC) {
-						SrcValue = Stack.Func.ConstantTable[CurrOp.C].Value;
-					} else {
-						SrcValue = Stack[CurrOp.C];
-					}
-
+					LuaValue SrcValue = GetRK(CurrOp.C, CurrOp.rkC);
 					LuaTable TableValue = Stack[CurrOp.A] as LuaTable;
-					LuaValue KeyValue = null;
-					if(CurrOp.rkB) {
-						KeyValue = Stack.Func.ConstantTable[CurrOp.B].Value;
-					} else {
-						KeyValue = Stack[CurrOp.B];
-					}
-
+					LuaValue KeyValue = GetRK(CurrOp.B, CurrOp.rkB);
 					TableValue[KeyValue] = SrcValue;
 					continue;
 				}
@@ -291,8 +273,82 @@ namespace Cheese.Machine
 					break;
 				}
 				
-				// TEST
-				
+				// EQ   // if ((RK(B) == RK(C)) ~= A) then PC++
+				case Instruction.OP.EQ:	{
+					LuaValue LVal = GetRK(CurrOp.B, CurrOp.rkB);
+					LuaValue RVal = GetRK(CurrOp.C, CurrOp.rkC);
+
+					int CompInt = (LVal.Equals(RVal) ? 1 : 0);
+					if(CompInt != CurrOp.A)
+						ProgramCounter++;
+					continue;
+				}
+
+				// LT   // if ((RK(B) < RK(C)) ~= A) then PC++
+				case Instruction.OP.LT:	{
+					LuaValue LVal = GetRK(CurrOp.B, CurrOp.rkB);
+					LuaValue RVal = GetRK(CurrOp.C, CurrOp.rkC);
+
+					int CompInt = 0;
+					if(LVal.GetType() == typeof(LuaNumber)) {
+						CompInt = ((LVal as LuaNumber).Number < (RVal as LuaNumber).Number) ? 1 : 0;
+					} else if(LVal.GetType() == typeof(LuaString)) {
+						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) == -1) ? 1 : 0;
+					}
+
+					if(CompInt != CurrOp.A)
+						ProgramCounter++;
+					continue;
+				}
+
+				// LE   // if ((RK(B) <= RK(C)) ~= A) then PC++
+				case Instruction.OP.LE:	{
+					LuaValue LVal = GetRK(CurrOp.B, CurrOp.rkB);
+					LuaValue RVal = GetRK(CurrOp.C, CurrOp.rkC);
+
+					int CompInt = 0;
+					if(LVal.GetType() == typeof(LuaNumber)) {
+						CompInt = ((LVal as LuaNumber).Number <= (RVal as LuaNumber).Number) ? 1 : 0;
+					} else if(LVal.GetType() == typeof(LuaString)) {
+						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) != 1) ? 1 : 0;
+					}
+
+					if(CompInt != CurrOp.A)
+						ProgramCounter++;
+					continue;
+				}
+
+				// TEST  // if not (R(A) <=> C) then PC++
+				case Instruction.OP.TEST: {
+					LuaValue TestValue = Stack[CurrOp.A];
+					byte TestBool = 1;
+					if (TestValue is LuaNil || 
+					   (TestValue is LuaBool && ((TestValue as LuaBool) == LuaBool.False)) ) {
+						TestBool = 0;
+					}
+					if(TestBool != CurrOp.C) {
+						ProgramCounter++;
+					}
+					continue;
+				}
+
+				// TESTSET  // if (R(B) <=> C) then R(A) := R(B) else PC++
+				case Instruction.OP.TESTSET: {
+					LuaValue TestValue = Stack[CurrOp.B];
+					byte TestBool = 1;
+					if (TestValue is LuaNil || 
+					    (TestValue is LuaBool && (TestValue as LuaBool).Value == false) ) {
+						TestBool = 0;
+					}
+					if(TestBool == CurrOp.C) {
+						Stack[CurrOp.A] = TestValue;
+					}
+					else {
+						ProgramCounter++;
+					}
+					continue;
+				}
+
 
 				// JMP  // PC += sBx // FIXME: Spec says B, Cheese uses A?
 				case Instruction.OP.JMP: {
