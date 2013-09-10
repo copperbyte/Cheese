@@ -172,7 +172,7 @@ namespace Cheese.Machine
 				ProgramCounter++;
 
 				// Execute Op
-				Console.WriteLine("Executing: {0}", CurrOp.ToString());
+				//Console.WriteLine("Executing: {0}", CurrOp.ToString());
 
 				switch(CurrOp.Code) {
 
@@ -247,7 +247,7 @@ namespace Cheese.Machine
 					LuaNumber F, S;
 					F = GetRK(CurrOp.B, CurrOp.rkB) as LuaNumber;
 					S = GetRK(CurrOp.C, CurrOp.rkC) as LuaNumber;
-						
+					
 					double dR = default(double);
 					switch(CurrOp.Code) { 
 					case Instruction.OP.ADD:
@@ -266,7 +266,7 @@ namespace Cheese.Machine
 						dR = (F.Number % S.Number);
 						break;
 					case Instruction.OP.POW:
-						dR = (Math.Pow(F.Number , S.Number));
+						dR = (Math.Pow(F.Number, S.Number));
 						break;
 					}
 					Stack[CurrOp.A] = new LuaNumber(dR);
@@ -274,7 +274,7 @@ namespace Cheese.Machine
 				}
 				
 				// EQ   // if ((RK(B) == RK(C)) ~= A) then PC++
-				case Instruction.OP.EQ:	{
+				case Instruction.OP.EQ: {
 					LuaValue LVal = GetRK(CurrOp.B, CurrOp.rkB);
 					LuaValue RVal = GetRK(CurrOp.C, CurrOp.rkC);
 
@@ -302,7 +302,7 @@ namespace Cheese.Machine
 				}
 
 				// LE   // if ((RK(B) <= RK(C)) ~= A) then PC++
-				case Instruction.OP.LE:	{
+				case Instruction.OP.LE: {
 					LuaValue LVal = GetRK(CurrOp.B, CurrOp.rkB);
 					LuaValue RVal = GetRK(CurrOp.C, CurrOp.rkC);
 
@@ -322,8 +322,8 @@ namespace Cheese.Machine
 				case Instruction.OP.TEST: {
 					LuaValue TestValue = Stack[CurrOp.A];
 					byte TestBool = 1;
-					if (TestValue is LuaNil || 
-					   (TestValue is LuaBool && ((TestValue as LuaBool) == LuaBool.False)) ) {
+					if(TestValue is LuaNil || 
+						(TestValue is LuaBool && ((TestValue as LuaBool) == LuaBool.False))) {
 						TestBool = 0;
 					}
 					if(TestBool != CurrOp.C) {
@@ -336,14 +336,13 @@ namespace Cheese.Machine
 				case Instruction.OP.TESTSET: {
 					LuaValue TestValue = Stack[CurrOp.B];
 					byte TestBool = 1;
-					if (TestValue is LuaNil || 
-					    (TestValue is LuaBool && (TestValue as LuaBool).Value == false) ) {
+					if(TestValue is LuaNil || 
+						(TestValue is LuaBool && (TestValue as LuaBool).Value == false)) {
 						TestBool = 0;
 					}
 					if(TestBool == CurrOp.C) {
 						Stack[CurrOp.A] = TestValue;
-					}
-					else {
+					} else {
 						ProgramCounter++;
 					}
 					continue;
@@ -353,6 +352,35 @@ namespace Cheese.Machine
 				// JMP  // PC += sBx // FIXME: Spec says B, Cheese uses A?
 				case Instruction.OP.JMP: {
 					ProgramCounter += CurrOp.A;
+					continue;
+				}
+
+				// FORLOOP   //  R(A) += R(A+2); if R(A) <?= R(A+1) then { PC += sBx; R(A+3) = R(A) }
+				case Instruction.OP.FORLOOP: {
+					LuaNumber InitVal  = Stack[CurrOp.A] as LuaNumber;
+					LuaNumber LimitVal = Stack[CurrOp.A + 1] as LuaNumber;
+					LuaNumber StepVal  = Stack[CurrOp.A + 2] as LuaNumber;
+					LuaNumber IndexVal = Stack[CurrOp.A + 3] as LuaNumber;
+					double IndexNum = InitVal.Number + StepVal.Number;
+
+					if(((0 < StepVal.Number) ? (IndexNum <= LimitVal.Number) 
+					   						: (LimitVal.Number <= IndexNum))) {
+						ProgramCounter += CurrOp.B;
+						InitVal.Number = IndexNum;
+						IndexVal.Number = IndexNum;
+					}
+					continue;
+				}
+				// FORPREP   //  R(A) -= R(A+2); PC += sBx
+				case Instruction.OP.FORPREP: {
+					LuaNumber InitVal  = Stack[CurrOp.A] as LuaNumber;
+					LuaNumber LimitVal = Stack[CurrOp.A + 1] as LuaNumber;
+					LuaNumber StepVal  = Stack[CurrOp.A + 2] as LuaNumber;
+					InitVal = new LuaNumber(InitVal.Number);
+					Stack[CurrOp.A] = InitVal;
+					Stack[CurrOp.A + 3] = new LuaNumber(0.0);
+					InitVal.Number = InitVal.Number - StepVal.Number;
+					ProgramCounter += CurrOp.B;
 					continue;
 				}
 
