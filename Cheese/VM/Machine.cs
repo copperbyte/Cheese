@@ -151,17 +151,17 @@ namespace Cheese.Machine
 		}
 
 
-		internal void ExecuteFunction(Function Function) {
+		internal void ExecuteFunction(Function Function, int CallDepth=1) {
 
 			Stack.PushFrame(ProgramCounter, Function, 0);
 			ProgramCounter = 0;
 
-			ExecuteMachine();
+			ExecuteMachine(CallDepth);
 
 			ProgramCounter = Stack.PopFrame();
 		}
 
-		private void ExecuteMachine() {
+		private void ExecuteMachine(int CallDepth=1) {
 
 			while(true) {
 				if(Stack == null || Stack.Func == null || 
@@ -394,7 +394,42 @@ namespace Cheese.Machine
 					Stack[CB + 1] = StateVal;						
 					Stack[CB + 2] = ControlVal;
 
+					int CapPC = ProgramCounter;
+
 					// Make Call (diff for func or delegate)
+					if(GeneratorVal is LuaDelegate) {
+						LuaDelegate FuncDelegate = GeneratorVal as LuaDelegate;
+						LuaTable Arguments = new LuaTable();
+
+						Arguments.Add(StateVal);
+						Arguments.Add(ControlVal);
+
+						LuaValue ReturnValue = null;
+						ReturnValue = FuncDelegate.Call(Arguments);
+						// Decode ReturnValue, assign return parts
+
+						if(ReturnValue is LuaTable) {
+							LuaTable ReturnTable = ReturnValue as LuaTable;
+							int ri = 0;
+							for(int i = CurrOp.A+3; i <= CurrOp.A+CurrOp.C+2; i++) {
+								Stack[i] = ReturnTable[ri]; 
+								ri++;
+							}
+						} else if(ReturnValue == null || ReturnValue is LuaNil) {
+							Stack[CurrOp.A + 3] = LuaNil.Nil;
+						} else {
+							; // FIXME hilarious bug
+						}
+
+					} else if(GeneratorVal is LuaClosure) {
+						LuaClosure ClosureValue = GeneratorVal as LuaClosure;
+						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CB);
+						ProgramCounter = 0;
+						ExecuteMachine(1);
+						ProgramCounter = Stack.PopFrame();
+					}
+
+					ProgramCounter = CapPC;
 
 					LuaValue NewControl = Stack[CB];
 
@@ -455,6 +490,7 @@ namespace Cheese.Machine
 
 						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CurrOp.A);
 						ProgramCounter = 0;
+						CallDepth++;
 						// UpVal storage setup?
 
 						// Trust that RETURN will handle the returns
@@ -487,9 +523,12 @@ namespace Cheese.Machine
 						}
 					}
 
-					ProgramCounter = Stack.PopFrame();
+					CallDepth--;
+					if(CallDepth == 0) // bottomed out, stop executing, not just adjust stack
+						return;
 
-					break; // not just break, pop, etc
+					ProgramCounter = Stack.PopFrame();		
+					continue; // not just break, pop, etc
 				}
 
 				} // end switch
