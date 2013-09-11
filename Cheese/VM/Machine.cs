@@ -349,9 +349,9 @@ namespace Cheese.Machine
 				}
 
 
-				// JMP  // PC += sBx // FIXME: Spec says B, Cheese uses A?
+				// JMP  // PC += sBx 
 				case Instruction.OP.JMP: {
-					ProgramCounter += CurrOp.A;
+					ProgramCounter += CurrOp.B;
 					continue;
 				}
 
@@ -381,6 +381,29 @@ namespace Cheese.Machine
 					Stack[CurrOp.A + 3] = new LuaNumber(0.0);
 					InitVal.Number = InitVal.Number - StepVal.Number;
 					ProgramCounter += CurrOp.B;
+					continue;
+				}
+				
+				case Instruction.OP.TFORLOOP: {
+					LuaValue GeneratorVal = Stack[CurrOp.A];
+					LuaValue StateVal     = Stack[CurrOp.A + 1];
+					LuaValue ControlVal   = Stack[CurrOp.A + 2];
+
+					int CB = CurrOp.A + 3;
+					Stack[CB] = GeneratorVal;
+					Stack[CB + 1] = StateVal;						
+					Stack[CB + 2] = ControlVal;
+
+					// Make Call (diff for func or delegate)
+
+					LuaValue NewControl = Stack[CB];
+
+					if(!(NewControl is LuaNil)) {
+						Stack[CurrOp.A + 2] = NewControl;
+						Instruction NextJmp = Stack.Func.Instructions[ProgramCounter];
+						ProgramCounter += NextJmp.B; 
+					}
+					ProgramCounter++;
 					continue;
 				}
 
