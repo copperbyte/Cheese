@@ -279,8 +279,12 @@ namespace Cheese.Machine
 					LuaValue RVal = GetRK(CurrOp.C, CurrOp.rkC);
 
 					int CompInt = (LVal.Equals(RVal) ? 1 : 0);
-					if(CompInt != CurrOp.A)
-						ProgramCounter++;
+
+					if(CompInt == CurrOp.A) {
+						Instruction NextJmp = Stack.Func.Instructions[ProgramCounter];
+						ProgramCounter += NextJmp.B; 
+					}
+					ProgramCounter++;
 					continue;
 				}
 
@@ -296,8 +300,11 @@ namespace Cheese.Machine
 						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) == -1) ? 1 : 0;
 					}
 
-					if(CompInt != CurrOp.A)
-						ProgramCounter++;
+					if(CompInt == CurrOp.A) {
+						Instruction NextJmp = Stack.Func.Instructions[ProgramCounter];
+						ProgramCounter += NextJmp.B; 
+					}
+					ProgramCounter++;
 					continue;
 				}
 
@@ -313,8 +320,11 @@ namespace Cheese.Machine
 						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) != 1) ? 1 : 0;
 					}
 
-					if(CompInt != CurrOp.A)
-						ProgramCounter++;
+					if(CompInt == CurrOp.A) {
+						Instruction NextJmp = Stack.Func.Instructions[ProgramCounter];
+						ProgramCounter += NextJmp.B; 
+					}
+					ProgramCounter++;
 					continue;
 				}
 
@@ -326,9 +336,12 @@ namespace Cheese.Machine
 						(TestValue is LuaBool && ((TestValue as LuaBool) == LuaBool.False))) {
 						TestBool = 0;
 					}
-					if(TestBool != CurrOp.C) {
-						ProgramCounter++;
+
+					if(TestBool == CurrOp.C) {
+						Instruction NextJmp = Stack.Func.Instructions[ProgramCounter];
+						ProgramCounter += NextJmp.B; 
 					}
+					ProgramCounter++;
 					continue;
 				}
 
@@ -342,9 +355,10 @@ namespace Cheese.Machine
 					}
 					if(TestBool == CurrOp.C) {
 						Stack[CurrOp.A] = TestValue;
-					} else {
-						ProgramCounter++;
+						Instruction NextJmp = Stack.Func.Instructions[ProgramCounter];
+						ProgramCounter += NextJmp.B; 
 					}
+					ProgramCounter++;
 					continue;
 				}
 
