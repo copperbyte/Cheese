@@ -30,7 +30,11 @@ namespace Cheese.Machine
 				KeyArg = Arguments[2];
 			}
 
-			var Enumerator = TableArg.EnumerableTable.GetEnumerator();
+			var Enumerable = TableArg.EnumerableTable;
+			if(Enumerable == null)
+				return LuaNil.Nil;
+
+			var Enumerator = Enumerable.GetEnumerator();
 			bool More = Enumerator.MoveNext();
 		
 			if(KeyArg != LuaNil.Nil) {
