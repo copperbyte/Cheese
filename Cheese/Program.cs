@@ -3,8 +3,10 @@ using System.IO;
 using System.Text;
 using System.Collections.Generic;
 
+using Machine = Cheese.Machine;
 namespace Cheese
 {
+
 
 	class MainClass
 	{
@@ -21,8 +23,8 @@ namespace Cheese
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_three.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_four.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_five.slua",FileMode.Open);
-			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_six.slua",FileMode.Open);
-			FileStream TestFile = new FileStream("..\\..\\TestFiles\\timetest.lua",FileMode.Open);
+			FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_six.slua",FileMode.Open);
+			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\timetest.lua",FileMode.Open);
 
 
 
@@ -33,8 +35,15 @@ namespace Cheese
 			Parsy.PrintTree(Root);
 
 			Compiler Comper = new Compiler();
-			Comper.Compile(Root);
+			Chunk CompiledChunk = Comper.Compile(Root);
 
+			// Create Environment (which contains VM)
+			// Environment.ExecuteChunk(CompiledChunk)
+			//  executes Chunk RootFunc, causes others funcs and such 
+			//  to be loaded into the environment
+
+			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			LuaEnv.ExecuteChunk(CompiledChunk);
 
 			Console.ReadKey();
 		}
