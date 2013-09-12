@@ -127,12 +127,14 @@ namespace Cheese.Machine
 		internal VmStack Stack;
 		int ProgramCounter;
 		// Globals table, from Envrionment?
+		private LuaEnvironment Environment;
 		private LuaTable Globals;
 		// Upval table?
 
-		public Machine(LuaTable Globals) 
+		public Machine(LuaEnvironment Env) 
 		{
-			this.Globals = Globals;
+			this.Environment = Env;
+			this.Globals = Env.Globals;
 			Stack = new VmStack();
 			ProgramCounter = 0;
 		}
@@ -172,7 +174,7 @@ namespace Cheese.Machine
 				ProgramCounter++;
 
 				// Execute Op
-				//Console.WriteLine("Executing: {0}", CurrOp.ToString());
+				Console.WriteLine("Executing: {0}", CurrOp.ToString());
 
 				switch(CurrOp.Code) {
 
@@ -419,12 +421,12 @@ namespace Cheese.Machine
 						Arguments.Add(ControlVal);
 
 						LuaValue ReturnValue = null;
-						ReturnValue = FuncDelegate.Call(Arguments);
+						ReturnValue = FuncDelegate.Call(Environment, Arguments);
 						// Decode ReturnValue, assign return parts
 
 						if(ReturnValue is LuaTable) {
 							LuaTable ReturnTable = ReturnValue as LuaTable;
-							int ri = 0;
+							int ri = 1;
 							for(int i = CurrOp.A+3; i <= CurrOp.A+CurrOp.C+2; i++) {
 								Stack[i] = ReturnTable[ri]; 
 								ri++;
@@ -474,7 +476,7 @@ namespace Cheese.Machine
 						}
 
 						LuaValue ReturnValue = null;
-						ReturnValue = FuncDelegate.Call(Arguments);
+						ReturnValue = FuncDelegate.Call(Environment, Arguments);
 						// Decode ReturnValue, assign return parts
 
 						if(CurrOp.C == 1) {
@@ -490,7 +492,7 @@ namespace Cheese.Machine
 							Stack[CurrOp.A] = ReturnValue;
 						} else {
 							LuaTable ReturnTable = ReturnValue as LuaTable;
-							int ri = 0;
+							int ri = 1;
 							for(int i = CurrOp.A; i < CurrOp.A+CurrOp.C-1; i++) {
 								Stack[i] = ReturnTable[ri]; 
 								ri++;
