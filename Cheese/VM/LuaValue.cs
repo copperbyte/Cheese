@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 namespace Cheese
 {
+	using Cheese.Machine;
+
 	public abstract class LuaValue
 	{
 
@@ -238,6 +240,11 @@ namespace Cheese
 			get { return this.Array; }
 		}
 
+		public IEnumerable<KeyValuePair<LuaValue,LuaValue>> EnumerableTable
+		{
+			get { return this.HashMap; }
+		}
+
 
 		public void Add(LuaValue Item) {
 			if(Array == null)
@@ -264,7 +271,7 @@ namespace Cheese
 	// LuaDelegate , a wrapper for a C# function
 	public class LuaDelegate : LuaValue {
 
-		public delegate LuaValue Delegate(LuaTable Arguments);
+		public delegate LuaValue Delegate(LuaEnvironment Env, LuaTable Arguments);
 
 		internal Delegate NativeDelegate;
 
@@ -273,8 +280,8 @@ namespace Cheese
 		}
 
 
-		public LuaValue Call(LuaTable Arguments) {
-			return NativeDelegate(Arguments);
+		public LuaValue Call(LuaEnvironment Env, LuaTable Arguments) {
+			return NativeDelegate(Env, Arguments);
 		}
 
 	}
