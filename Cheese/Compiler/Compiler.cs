@@ -645,8 +645,15 @@ namespace Cheese
 					CompileLocalAssignStmt(Statement);
 				else if(Statement.Type == ParseNode.EType.RETURN_STAT) 
 					CompileReturnStmt(Statement);
-				//CurrFunc.UsedRegs.Clear();
-			}
+
+				CurrFunc.UsedRegs.Clear();
+				foreach(List<LocalEntry> Scope in CurrFunc.LocalScopes) {
+					foreach(LocalEntry Entry in Scope) {
+						CurrFunc.UsedRegs.Add(Entry.Index);
+					}
+				}
+
+			} // end Statement Loop
 
 		}
 
@@ -1321,7 +1328,20 @@ namespace Cheese
 					continue;
 
 				VList CurrVs = CompileExp(Child, LVals, Result);
-				Result.AddRange(CurrVs);
+
+				foreach(CompilerValue CurrV in CurrVs) {
+					CompilerValue BetterV = GetLReg(LVals, Result);
+					if (BetterV != null && 
+					   (BetterV.IsRegister != CurrV.IsRegister || BetterV.Index != CurrV.Index)) {
+						EmitAssignOp(BetterV, CurrV);
+						FreeRegister(CurrV);
+						ClaimRegister(BetterV);
+						Result.Add(BetterV);
+					} else {
+						Result.Add(CurrV);
+					}
+				}	
+				//Result.AddRange(CurrVs);
 			}
 
 			return Result;
@@ -1370,7 +1390,7 @@ namespace Cheese
 					} else if(Child.Token.Type == Token.EType.STRING) {
 						CompilerValue CVal = GetConstIndex(Child.Token.Value);
 						Result.Add(CVal);
-						//Value Dest = GetLRegorTReg(LVals, RVals);
+						//CompilerValue Dest = GetLRegorTReg(LVals, RVals);
 						//EmitAssignOp(Dest, CVal);
 						//Result.Add(Dest);
 					}
@@ -1576,6 +1596,13 @@ namespace Cheese
 					} 
 				}}
 
+				CompilerValue BetterVarVal = GetLReg(LVals, RVals);
+				if(BetterVarVal != null) {
+					EmitAssignOp(BetterVarVal, VarVal);
+					FreeRegister(VarVal);
+					ClaimRegister(BetterVarVal);
+					VarVal = BetterVarVal;
+				}
 				Result.Add(VarVal);
 
 				/*
@@ -1599,7 +1626,7 @@ namespace Cheese
 				*/
 			} else { // assume ( exp ) 
 				ParseNode Exp = VarOrExp.Children[1];
-				Result = CompileExp(Exp);
+				Result = CompileExp(Exp, LVals, RVals);
 			}
 
 			return Result;
@@ -1785,6 +1812,7 @@ namespace Cheese
 			CompilerValue Result = GetLRegorTReg(LVals, RVals);
 
 			CurrFunc.Instructions.Add(InstOp, Result.Index, LV.Index, LV.IsConstant, RV.Index, RV.IsConstant);
+			ClaimRegister(Result);
 
 			return Result;
 		}
@@ -1864,6 +1892,7 @@ namespace Cheese
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 0, 1); // skip next 
 				CurrFunc.Instructions.Add(Instruction.OP.LOADBOOL, TReg.Index, 1, 0);
 				EmitFromRegisterOp(DestVal, TReg);
+				ClaimRegister(DestVal);
 			}
 
 			return DestVal;
@@ -1891,6 +1920,7 @@ namespace Cheese
 			CompilerValue Result = GetLRegorTReg(LVals, RVals);
 
 			CurrFunc.Instructions.Add(InstOp, Result.Index, RV.Index);
+			ClaimRegister(Result);
 
 			return Result;
 		}
