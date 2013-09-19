@@ -75,19 +75,20 @@ namespace Cheese.Machine
 		}*/
 
 		public void PushFrame(int PC, Function Func, int ArgBase) {
-			Reserve(Func.MaxStackSize - ArgBase + 1);
+			if(Func != null)
+				Reserve(Func.MaxStackSize - ArgBase + 1);
 
 			CurrFrame.PC = PC;
 			Frames.Add(CurrFrame);
 
 			int NewBase = CurrFrame.Base + ArgBase + 1;
-			Console.WriteLine("Stack.PushFrame  Base {0} => {1} ", CurrFrame.Base, NewBase);
+			//Console.WriteLine("Stack.PushFrame  Base {0} => {1} ", CurrFrame.Base, NewBase);
 			CurrFrame.Base = NewBase; //CurrFrame.Top;
 			CurrFrame.Func = Func;
 		}
 
 		public int PopFrame() {
-			Console.Write("Stack.PopFrame  Base {0}", CurrFrame.Base);
+			//Console.Write("Stack.PopFrame  Base {0}", CurrFrame.Base);
 			if(Frames.Count == 0) {
 				CurrFrame.Base = 0;
 				CurrFrame.Top = 0;
@@ -96,7 +97,7 @@ namespace Cheese.Machine
 				CurrFrame = Frames[Frames.Count - 1];
 				Frames.RemoveAt(Frames.Count - 1);
 			}
-			Console.WriteLine(" => {0} ", CurrFrame.Base);
+			//Console.WriteLine(" => {0} ", CurrFrame.Base);
 
 			//int RestoredPC = (int)Storage[FramePointer - 2];
 			//int RestoredFramePointer = (int)Storage[FramePointer - 1];
@@ -174,7 +175,7 @@ namespace Cheese.Machine
 				ProgramCounter++;
 
 				// Execute Op
-				Console.WriteLine("Executing: {0}", CurrOp.ToString());
+				//Console.WriteLine("Executing: {0}", CurrOp.ToString());
 
 				switch(CurrOp.Code) {
 
@@ -437,7 +438,30 @@ namespace Cheese.Machine
 							; // FIXME hilarious bug
 						}
 
-					} else if(GeneratorVal is LuaClosure) {
+					} 
+					else if(GeneratorVal is LuaSysDelegate) {
+						LuaSysDelegate FuncDelegate = GeneratorVal as LuaSysDelegate;
+
+						// Stack is prepped for 2 Args already;
+
+						Stack.PushFrame(ProgramCounter, null, CB);
+
+						FuncDelegate.Call(Environment, Stack, 3, CurrOp.C+2);
+
+						ProgramCounter = Stack.PopFrame();
+						// Decode ReturnValue, assign return parts
+
+						if(CurrOp.C == 1) {
+							; // Do nothing
+						} else if(CurrOp.C == 0) {
+							; // Handle Var Returns
+						} else if(CurrOp.C == 2) {
+							; //Already on stack
+						} else {
+							; //Already on stack
+						}
+					}
+					else if(GeneratorVal is LuaClosure) {
 						LuaClosure ClosureValue = GeneratorVal as LuaClosure;
 						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CB);
 						ProgramCounter = 0;
@@ -466,7 +490,7 @@ namespace Cheese.Machine
 						LuaDelegate FuncDelegate = FuncValue as LuaDelegate;
 
 						LuaTable Arguments = new LuaTable();
-						
+					
 						if(CurrOp.B == 0) {
 							; // Handle Var Arg case
 						} else {
@@ -499,6 +523,34 @@ namespace Cheese.Machine
 							}
 						}
 					} 
+					else if(FuncValue is LuaSysDelegate) {
+						LuaSysDelegate FuncDelegate = FuncValue as LuaSysDelegate;
+
+
+						if(CurrOp.B == 0) {
+							; // Handle Var Arg case
+						} else {
+							; // args are on stack already
+						}
+
+						Stack.PushFrame(ProgramCounter, null, CurrOp.A);
+
+						LuaValue ReturnValue = null;
+						ReturnValue = FuncDelegate.Call(Environment, Stack, CurrOp.B, CurrOp.C);
+
+						ProgramCounter = Stack.PopFrame();
+						// Decode ReturnValue, assign return parts
+
+						if(CurrOp.C == 1) {
+							; // Do nothing
+						} else if(CurrOp.C == 0) {
+							; // Handle Var Returns
+						} else if(CurrOp.C == 2) {
+							; //Already on stack
+						} else {
+							; //Already on stack
+						}
+					}
 					else if(FuncValue is LuaClosure) {
 						LuaClosure ClosureValue = FuncValue as LuaClosure;
 

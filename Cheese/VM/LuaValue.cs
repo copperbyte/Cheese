@@ -286,5 +286,26 @@ namespace Cheese
 
 	}
 
+
+	// LuaSysDelegate , a wrapper for a C# function, but handles the stack directly
+	internal class LuaSysDelegate : LuaValue {
+
+		public delegate void SysDelegate(LuaEnvironment Env, VmStack Stack, 
+		                                 int ArgCount, int RetCount);
+
+		internal SysDelegate NativeSysDelegate;
+
+		public LuaSysDelegate(SysDelegate Value) {
+			NativeSysDelegate = Value;
+		}
+
+
+		public LuaValue Call(LuaEnvironment Env, VmStack Stack, 
+		                     int ArgCount, int RetCount) {
+			NativeSysDelegate(Env, Stack, ArgCount, RetCount);
+			return LuaNil.Nil;
+		}
+	}
+
 }
 

@@ -23,6 +23,25 @@ namespace Cheese.Machine
 			return LuaNil.Nil;
 		}
 
+		internal static void printS(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+
+			bool First = true;
+			for(int Loop = 0; Loop < (ArgC-1); Loop++) {
+			//foreach(LuaValue Curr in Arguments.EnumerableArray) {
+				if(!First)
+					Env.SystemOut.Write("\t");
+				LuaValue Curr = Stack[Loop];
+				Env.SystemOut.Write(Curr.ToString());
+				First = false;
+			}
+
+			Env.SystemOut.WriteLine();
+
+			// Ignoring Rets
+
+			return;
+		}
+
 
 		internal static LuaValue next(LuaEnvironment Env, LuaTable Arguments) {
 			LuaTable TableArg = Arguments[1] as LuaTable;
@@ -132,7 +151,8 @@ namespace Cheese.Machine
 		////
 		private void InitSystemFunctions() {
 
-			Globals[new LuaString("print")] = new LuaDelegate(SystemFunctions.print);
+			//Globals[new LuaString("print")] = new LuaDelegate(SystemFunctions.print);
+			Globals[new LuaString("print")] = new LuaSysDelegate(SystemFunctions.printS);
 
 			Globals[new LuaString("next")] = new LuaDelegate(SystemFunctions.next);
 			Globals[new LuaString("pairs")] = new LuaDelegate(SystemFunctions.pairs);
