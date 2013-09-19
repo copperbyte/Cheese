@@ -23,8 +23,8 @@ namespace Cheese
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_three.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_four.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_five.slua",FileMode.Open);
-			FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_six.slua",FileMode.Open);
-			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\timetest.lua",FileMode.Open);
+			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_six.slua",FileMode.Open);
+			FileStream TestFile = new FileStream("..\\..\\TestFiles\\timetest.lua",FileMode.Open);
 
 
 
@@ -43,7 +43,12 @@ namespace Cheese
 			//  to be loaded into the environment
 
 			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			StringWriter LocalOut = new StringWriter();
+			LuaEnv.SetOutput(LocalOut);
+
 			LuaEnv.ExecuteChunk(CompiledChunk);
+
+			Console.WriteLine("**{0}**", LocalOut.ToString());
 
 			Console.ReadKey();
 		}

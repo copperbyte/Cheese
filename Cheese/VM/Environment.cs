@@ -1,5 +1,7 @@
 using System;
 
+using System.IO;
+
 
 namespace Cheese.Machine
 {
@@ -11,12 +13,12 @@ namespace Cheese.Machine
 			bool First = true;
 			foreach(LuaValue Curr in Arguments.EnumerableArray) {
 				if(!First)
-					Console.Write("\t");
-				Console.Write(Curr.ToString());
+					Env.SystemOut.Write("\t");
+				Env.SystemOut.Write(Curr.ToString());
 				First = false;
 			}
 
-			Console.WriteLine();
+			Env.SystemOut.WriteLine();
 
 			return LuaNil.Nil;
 		}
@@ -96,6 +98,8 @@ namespace Cheese.Machine
 	{
 		internal Machine Machine;
 
+		internal TextWriter SystemOut;
+
 		// Globals?
 		// Has to be a LuaTable so it can be used in Lua code by "_G"
 		internal LuaTable Globals;
@@ -107,9 +111,14 @@ namespace Cheese.Machine
 		{
 			Globals = new LuaTable();
 
+			SystemOut = Console.Out;
+
 			InitSystemFunctions();
 		}
 
+		public void SetOutput(TextWriter Out) {
+			SystemOut = Out;
+		}
 
 		public void ExecuteChunk(Chunk Chunk) {
 
