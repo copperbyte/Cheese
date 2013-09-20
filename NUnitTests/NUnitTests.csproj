@@ -38,4 +38,10 @@
     <Compile Include="Test.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <ProjectReference Include="..\Cheese\Cheese.csproj">
+      <Project>{695608E4-9793-436C-9318-C2BABA96C5B6}</Project>
+      <Name>Cheese</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>
