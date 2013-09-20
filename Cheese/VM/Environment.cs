@@ -139,6 +139,24 @@ namespace Cheese.Machine
 			SystemOut = Out;
 		}
 
+		public Chunk Compile(string Code) {
+			Parser Parsy = new Parser(new StringReader(Code));
+			ParseNode Root = Parsy.Parse();
+			Parsy.PrintTree(Root);
+
+			Compiler Comper = new Compiler();
+			Chunk CompiledChunk = Comper.Compile(Root);
+
+			return CompiledChunk;
+		}
+
+
+		public void Execute(string Code) {
+			Chunk Compiled = Compile(Code);
+			ExecuteChunk(Compiled);
+		}
+
+
 		public void ExecuteChunk(Chunk Chunk) {
 
 			if(Machine == null)
