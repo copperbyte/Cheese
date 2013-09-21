@@ -173,7 +173,7 @@ namespace NUnitTests
 		}
 
 		[Test()]
-		public void IfTest()
+		public void IfElseIfTest()
 		{
 			string Code = @"
 				
@@ -189,25 +189,56 @@ namespace NUnitTests
 				    print(""the number is <= 5"")
 				  end
 				end
+				
+				if_else_if();";
 
-				---
+			string Expected = "the number is > 10\r\n";
 
-				function eq_ne()
-				  n = 12
-				  if n == 15 then
-				    print(""the number is == 15"")
-				  elseif n ~= 15 then
-				    print(""the number is ~= 15"")
-				  end
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void CompOpTest()
+		{
+			string Code = @"
+				one = 1;
+				two = 2;
+				three = 3;
+				five = 5;
+
+				other_three = one + two;
+
+				if (one < two) then
+					print(""one < two"");
 				end
 
+				if (two <= three) then
+					print(""two <= three"");
+				end
+
+				if (three == other_three) then
+					print(""three is three"");
+				end				
 				
-				if_else_if();
-				eq_ne();
+				if (five > one) then
+					print(""five > one"");
+				end
+
+				if ( (one+two) >= three) then
+    				print(""math >= three"");
+				end
+
+				if (one ~= three) then
+					print(""one is not three"");
+				end
 				 ";
 
-			string Expected = "the number is > 10\r\n"
-							+ "the number is ~= 15\r\n"  ;
+			string Expected = "one < two\r\n"
+							+ "two <= three\r\n"
+							+ "three is three\r\n"
+							+ "five > one\r\n"
+							+ "math >= three\r\n"
+							+ "one is not three\r\n";
 
 			ConsoleCompareTest(Code, Expected);
 		}
