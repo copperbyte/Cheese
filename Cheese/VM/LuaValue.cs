@@ -26,7 +26,7 @@ namespace Cheese
 		public static readonly LuaBool False = new LuaBool(false);
 
 		public bool Value {
-			get;
+			get; 
 			private set;
 		}
 
@@ -35,7 +35,8 @@ namespace Cheese
 		}
 
 		public override string ToString() {
-			return Value.ToString();
+			//return Value.ToString();
+			return (this.Value ? "true" : "false");
 		}
 	}
 
