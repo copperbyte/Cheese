@@ -107,14 +107,14 @@ namespace Cheese
 
 	public class LuaInteger : LuaValue {
 
-		public static readonly LuaInteger Default = new LuaInteger(default(int));
+		public static readonly LuaInteger Default = new LuaInteger(default(long));
 
-		public int Integer {
+		public long Integer {
 			get;
-			private set;
+			internal set;
 		}
 
-		public LuaInteger(int Value) {
+		public LuaInteger(long Value) {
 			Integer = Value;
 		}
 
@@ -168,7 +168,7 @@ namespace Cheese
 		}
 
 		// Lua is 1-based, and so is this.
-		public LuaValue this[int Index]
+		public LuaValue this[long Index]
 		{
 			get { 
 				if(Array == null) 
@@ -176,8 +176,8 @@ namespace Cheese
 				else if(Array.Count <= Index-1)
 					return LuaNil.Nil;
 				else
-					return Array[Index-1]; }
-			set { Array[Index-1] = value; }
+					return Array[(int)Index-1]; }
+			set { Array[(int)Index-1] = value; }
 		}
 
 		public LuaValue this[LuaValue Key]
@@ -187,9 +187,13 @@ namespace Cheese
 				if(Key is LuaNumber) {
 					double NumVal = (Key as LuaNumber).Number;
 					if(NumVal % 1 == 0) {
-						int IntVal = (int)NumVal;
+						long IntVal = (long)NumVal;
 						return this[IntVal];
 					}
+				}
+
+				if(Key is LuaInteger) {
+					return this[(Key as LuaInteger).Integer];
 				}
 
 				if(HashMap == null)
@@ -204,7 +208,7 @@ namespace Cheese
 				if(Key is LuaNumber) {
 					double NumVal = (Key as LuaNumber).Number;
 					if(NumVal % 1 == 0) {
-						int IntVal = (int)NumVal;
+						long IntVal = (long)NumVal;
 						this[IntVal] = value;
 						return;
 					}

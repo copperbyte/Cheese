@@ -247,33 +247,66 @@ namespace Cheese.Machine
 				case Instruction.OP.DIV:
 				case Instruction.OP.MOD:
 				case Instruction.OP.POW: {
-					LuaNumber F, S;
-					F = GetRK(CurrOp.B, CurrOp.rkB) as LuaNumber;
-					S = GetRK(CurrOp.C, CurrOp.rkC) as LuaNumber;
-					
-					double dR = default(double);
-					switch(CurrOp.Code) { 
-					case Instruction.OP.ADD:
-						dR = (F.Number + S.Number);
-						break;
-					case Instruction.OP.SUB:
-						dR = (F.Number - S.Number);
-						break;
-					case Instruction.OP.MUL:
-						dR = (F.Number * S.Number);
-						break;
-					case Instruction.OP.DIV:
-						dR = (F.Number / S.Number);
-						break;
-					case Instruction.OP.MOD:
-						dR = (F.Number % S.Number);
-						break;
-					case Instruction.OP.POW:
-						dR = (Math.Pow(F.Number, S.Number));
-						break;
+					LuaValue FV, SV;
+					FV = GetRK(CurrOp.B, CurrOp.rkB);
+					SV = GetRK(CurrOp.C, CurrOp.rkC);
+
+					if(FV is LuaInteger && SV is LuaInteger) {
+						LuaInteger FI = FV as LuaInteger, SI = SV as LuaInteger;
+
+						long lR = default(long);
+						switch(CurrOp.Code) { 
+						case Instruction.OP.ADD:
+							lR = (FI.Integer + SI.Integer);
+							break;
+						case Instruction.OP.SUB:
+							lR = (FI.Integer - SI.Integer);
+							break;
+						case Instruction.OP.MUL:
+							lR = (FI.Integer * SI.Integer);
+							break;
+						case Instruction.OP.DIV:
+							lR = (FI.Integer / SI.Integer);
+							break;
+						case Instruction.OP.MOD:
+							lR = (FI.Integer % SI.Integer);
+							break;
+						case Instruction.OP.POW:
+							lR = (long)(Math.Pow(FI.Integer, SI.Integer));
+							break;
+						}
+						Stack[CurrOp.A] = new LuaInteger(lR);
+						continue;
+					} 
+					else {
+						LuaNumber F, S;
+						F = FV as LuaNumber;
+						S = FV as LuaNumber;
+				
+						double dR = default(double);
+						switch(CurrOp.Code) { 
+						case Instruction.OP.ADD:
+							dR = (F.Number + S.Number);
+							break;
+						case Instruction.OP.SUB:
+							dR = (F.Number - S.Number);
+							break;
+						case Instruction.OP.MUL:
+							dR = (F.Number * S.Number);
+							break;
+						case Instruction.OP.DIV:
+							dR = (F.Number / S.Number);
+							break;
+						case Instruction.OP.MOD:
+							dR = (F.Number % S.Number);
+							break;
+						case Instruction.OP.POW:
+							dR = (Math.Pow(F.Number, S.Number));
+							break;
+						}
+						Stack[CurrOp.A] = new LuaNumber(dR);
+						continue;
 					}
-					Stack[CurrOp.A] = new LuaNumber(dR);
-					break;
 				}
 				
 				// EQ   // if ((RK(B) == RK(C)) ~= A) then PC++
@@ -299,6 +332,8 @@ namespace Cheese.Machine
 					int CompInt = 0;
 					if(LVal.GetType() == typeof(LuaNumber)) {
 						CompInt = ((LVal as LuaNumber).Number < (RVal as LuaNumber).Number) ? 1 : 0;
+					} else if(LVal.GetType() == typeof(LuaInteger)) {
+						CompInt = ((LVal as LuaInteger).Integer < (RVal as LuaInteger).Integer) ? 1 : 0;
 					} else if(LVal.GetType() == typeof(LuaString)) {
 						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) == -1) ? 1 : 0;
 					}
@@ -319,6 +354,8 @@ namespace Cheese.Machine
 					int CompInt = 0;
 					if(LVal.GetType() == typeof(LuaNumber)) {
 						CompInt = ((LVal as LuaNumber).Number <= (RVal as LuaNumber).Number) ? 1 : 0;
+					} else if(LVal.GetType() == typeof(LuaInteger)) {
+						CompInt = ((LVal as LuaInteger).Integer < (RVal as LuaInteger).Integer) ? 1 : 0;
 					} else if(LVal.GetType() == typeof(LuaString)) {
 						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) != 1) ? 1 : 0;
 					}
@@ -374,29 +411,56 @@ namespace Cheese.Machine
 
 				// FORLOOP   //  R(A) += R(A+2); if R(A) <?= R(A+1) then { PC += sBx; R(A+3) = R(A) }
 				case Instruction.OP.FORLOOP: {
-					LuaNumber InitVal  = Stack[CurrOp.A] as LuaNumber;
-					LuaNumber LimitVal = Stack[CurrOp.A + 1] as LuaNumber;
-					LuaNumber StepVal  = Stack[CurrOp.A + 2] as LuaNumber;
-					LuaNumber IndexVal = Stack[CurrOp.A + 3] as LuaNumber;
-					double IndexNum = InitVal.Number + StepVal.Number;
+					if(Stack[CurrOp.A] is LuaNumber) {
+						LuaNumber InitVal = Stack[CurrOp.A] as LuaNumber;
+						LuaNumber LimitVal = Stack[CurrOp.A + 1] as LuaNumber;
+						LuaNumber StepVal = Stack[CurrOp.A + 2] as LuaNumber;
+						LuaNumber IndexVal = Stack[CurrOp.A + 3] as LuaNumber;
+						double IndexNum = InitVal.Number + StepVal.Number;
 
-					if(((0 < StepVal.Number) ? (IndexNum <= LimitVal.Number) 
-					   						: (LimitVal.Number <= IndexNum))) {
-						ProgramCounter += CurrOp.B;
-						InitVal.Number = IndexNum;
-						IndexVal.Number = IndexNum;
+						if(((0 < StepVal.Number) ? (IndexNum <= LimitVal.Number) 
+				   						: (LimitVal.Number <= IndexNum))) {
+							ProgramCounter += CurrOp.B;
+							InitVal.Number = IndexNum;
+							IndexVal.Number = IndexNum;
+						}
+					}
+					else if(Stack[CurrOp.A] is LuaInteger) {
+						LuaInteger InitVal = Stack[CurrOp.A] as LuaInteger;
+						LuaInteger LimitVal = Stack[CurrOp.A + 1] as LuaInteger;
+						LuaInteger StepVal = Stack[CurrOp.A + 2] as LuaInteger;
+						LuaInteger IndexVal = Stack[CurrOp.A + 3] as LuaInteger;
+						long IndexNum = InitVal.Integer + StepVal.Integer;
+
+						if(((0 < StepVal.Integer) ? (IndexNum <= LimitVal.Integer) 
+						    : (LimitVal.Integer <= IndexNum))) {
+							ProgramCounter += CurrOp.B;
+							InitVal.Integer = IndexNum;
+							IndexVal.Integer = IndexNum;
+						}
 					}
 					continue;
 				}
 				// FORPREP   //  R(A) -= R(A+2); PC += sBx
 				case Instruction.OP.FORPREP: {
-					LuaNumber InitVal  = Stack[CurrOp.A] as LuaNumber;
-					LuaNumber LimitVal = Stack[CurrOp.A + 1] as LuaNumber;
-					LuaNumber StepVal  = Stack[CurrOp.A + 2] as LuaNumber;
-					InitVal = new LuaNumber(InitVal.Number);
-					Stack[CurrOp.A] = InitVal;
-					Stack[CurrOp.A + 3] = new LuaNumber(0.0);
-					InitVal.Number = InitVal.Number - StepVal.Number;
+					if(Stack[CurrOp.A] is LuaNumber) {
+						LuaNumber InitVal = Stack[CurrOp.A] as LuaNumber;
+						LuaNumber LimitVal = Stack[CurrOp.A + 1] as LuaNumber;
+						LuaNumber StepVal = Stack[CurrOp.A + 2] as LuaNumber;
+						InitVal = new LuaNumber(InitVal.Number);
+						Stack[CurrOp.A] = InitVal;
+						Stack[CurrOp.A + 3] = new LuaNumber(0.0);
+						InitVal.Number = InitVal.Number - StepVal.Number;
+					}
+					else if(Stack[CurrOp.A] is LuaInteger) {
+						LuaInteger InitVal = Stack[CurrOp.A] as LuaInteger;
+						LuaInteger LimitVal = Stack[CurrOp.A + 1] as LuaInteger;
+						LuaInteger StepVal = Stack[CurrOp.A + 2] as LuaInteger;
+						InitVal = new LuaInteger(InitVal.Integer);
+						Stack[CurrOp.A] = InitVal;
+						Stack[CurrOp.A + 3] = new LuaInteger(0);
+						InitVal.Integer = InitVal.Integer - StepVal.Integer;
+					}
 					ProgramCounter += CurrOp.B;
 					continue;
 				}

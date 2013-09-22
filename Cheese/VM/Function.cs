@@ -10,6 +10,7 @@ namespace Cheese.Machine
 	class ConstEntry {
 		internal int Index;
 		internal double NumberVal;
+		internal long IntegerVal;
 		internal string StringVal;
 		internal LuaValue Value;
 	}

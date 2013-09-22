@@ -270,6 +270,23 @@ namespace Cheese
 			//return NewEntry.Value;
 		}
 
+		CompilerValue GetConstIndex(long ConstValue) {
+			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
+				if(Entry.StringVal == null && Entry.IntegerVal == ConstValue) {
+					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
+					//return Entry.Value;
+				}
+			}
+			ConstEntry NewEntry = new ConstEntry();
+			NewEntry.Index = CurrFunc.ConstantTable.Count;
+			//NewEntry.Value.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
+			NewEntry.IntegerVal = ConstValue;
+			NewEntry.Value = new LuaInteger(ConstValue);
+			CurrFunc.ConstantTable.Add(NewEntry);
+			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
+			//return NewEntry.Value;
+		}
+
 		bool CheckGlobal(string Name) {
 			foreach(CompilerValue Iter in Globals) {
 				if (Iter.Index < CurrFunc.ConstantTable.Count &&
@@ -1089,7 +1106,7 @@ namespace Cheese
 			FinalizeLocal(LimitVal);
 
 			if(StepExp == null) {
-				CompilerValue DefaultOne = GetConstIndex(1.0);
+				CompilerValue DefaultOne = GetConstIndex(1);
 				EmitAssignOp(StepVal, DefaultOne);
 			} else {
 				EmitAssignOp(StepVal, CompileSingularExp(StepExp, StepVal));
@@ -1381,8 +1398,14 @@ namespace Cheese
 
 					} else if(Child.Token.Type == Token.EType.NUMBER) {
 						double NumValue = 0.0;
-						Double.TryParse(Child.Token.Value, out NumValue);
-						CompilerValue CVal = GetConstIndex(NumValue);
+						long IntValue = 0;
+						bool IsInt = Int64.TryParse(Child.Token.Value, out IntValue);
+						bool IsNum = Double.TryParse(Child.Token.Value, out NumValue);
+						CompilerValue CVal;
+						if(IsInt)
+							CVal = GetConstIndex(IntValue);
+						else
+							CVal = GetConstIndex(NumValue);
 						Result.Add(CVal);
 						//Value Dest = GetLRegorTReg(LVals, RVals);
 						//EmitAssignOp(Dest, CVal);
