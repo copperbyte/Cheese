@@ -761,20 +761,61 @@ namespace Cheese
 			ParseNode FuncName = FuncStatement.Children[1];
 			ParseNode FuncBody = FuncStatement.Children[2];
 
+			CompilerValue DestVal = null;
+			string SelfName = null;
 
 			// Resolve Funcname, 
 			// get it into globals
-			string FuncNameStr;
-			FuncNameStr = FuncName.Children[0].Token.Value;
+			{
+				string Base=null, Final=null;
+				List<string> Names = new List<string>();
+				for(int Index = 0; Index < FuncName.Children.Count; Index += 2) {
+					string Curr = FuncName.Children[Index].Token.Value;
+					if(Index == 0)
+						Base = Curr;
+					else if(Index >= 1 && FuncName.Children[Index-1].Token.IsOperator(":")) 
+						Final = Curr;
+					else 
+						Names.Add(Curr);
+				}
+
+				CompilerValue BaseV = null;
+				{
+					CompilerValue LocalV = GetLocalIndex(Base, false);
+					if(LocalV != null) {
+						BaseV = LocalV;
+					} else {
+						CompilerValue GlobalV = GetGlobalIndex(Base);
+						if(GlobalV != null)
+							BaseV = GlobalV;
+					} 
+				}
+				SelfName = Base;
+
+				CompilerValue CurrV = new CompilerValue(BaseV);
+				foreach(string Name in Names) {
+					CompilerValue Key = GetConstIndex(Name);
+					CurrV.Key = Key;
+					CurrV = GetAsRegister(CurrV);
+					SelfName = Name;
+				}
+				if(Final != null) {
+					CurrV.Key = GetConstIndex(Final);
+				} else {
+					SelfName = null;
+				}
+
+				DestVal = CurrV;
+			}
 
 
+			//CompilerValue GVal = GetGlobalIndex(FuncNameStr);
 
-			CompilerValue GVal = GetGlobalIndex(FuncNameStr);
-			CompilerValue ClosureReg = CompileFunctionBody(FuncBody);
+			CompilerValue ClosureReg = CompileFunctionBody(FuncBody, SelfName);
 
-			EmitAssignOp(GVal, ClosureReg);
+			EmitAssignOp(DestVal, ClosureReg);
 
-			FreeRegister(GVal);
+			FreeRegister(DestVal);
 			FreeRegister(ClosureReg);
 		}
 
@@ -1673,7 +1714,7 @@ namespace Cheese
 			return ArgCount;
 		}
 
-		CompilerValue CompileFunctionBody(ParseNode FuncBody) {
+		CompilerValue CompileFunctionBody(ParseNode FuncBody, string SelfName = null) {
 			// funcbody : '(' (parlist1)? ')' block 'end';';
 
 			ParseNode ParList = null, FuncBlock = null;
@@ -1700,6 +1741,10 @@ namespace Cheese
 			// Do it after CurrFunc shift
 			// FIXME: '...'
 			// VList ParValues = CompileParList(ParList);
+			if(SelfName != null) {
+				CompilerValue SelfVal = CreateLocal(SelfName);
+				FinalizeLocal(SelfVal);
+			}
 			VList ParValues;
 			if(ParList != null) {
 				ParValues = CompileNameList(ParList.Children[0]);
