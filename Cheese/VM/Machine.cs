@@ -632,6 +632,16 @@ namespace Cheese.Machine
 					break;
 				}
 				
+				// SELF //  R(A+1) := R(B); R(A) := R(B)[RK(C)]
+				case Instruction.OP.SELF: {
+					LuaTable SelfTable = Stack[CurrOp.B] as LuaTable;
+					LuaValue Key = GetRK(CurrOp.C, CurrOp.rkC);
+					LuaValue FuncVal = SelfTable[Key];
+					Stack[CurrOp.A] = FuncVal;
+					Stack[CurrOp.A + 1] = SelfTable;
+					continue;
+				}
+
 				// CLOSURE    R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))
 				case Instruction.OP.CLOSURE: {
 					Function ClosureFunc = Stack.Func.SubFunctions[CurrOp.B];
