@@ -761,67 +761,19 @@ namespace Cheese
 			ParseNode FuncName = FuncStatement.Children[1];
 			ParseNode FuncBody = FuncStatement.Children[2];
 
-			ParseNode ParList = null, FuncBlock = null;
-			if(FuncBody.Children[1].Type == ParseNode.EType.PAR_LIST) {
-				ParList = FuncBody.Children[1];
-				FuncBlock = FuncBody.Children[3];
-			} else {
-				ParList = null;
-				FuncBlock = FuncBody.Children[2];
-			}
-
-			if(FuncBlock.IsTerminal() && FuncBlock.Token.IsKeyword("end"))
-				FuncBlock = null;
-
 
 			// Resolve Funcname, 
 			// get it into globals
 			string FuncNameStr;
 			FuncNameStr = FuncName.Children[0].Token.Value;
 
-			// push function..
-			Function NewFunc = new Function();
-			FunctionStack.Push(NewFunc);
-			CurrFunc = NewFunc;
-
-			PushLocalScope();
-
-			// Parse ParList, List of Args/Locals?
-			// Do it after CurrFunc shift
-			// FIXME: '...'
-			// VList ParValues = CompileParList(ParList);
-			VList ParValues;
-			if(ParList != null) {
-				ParValues = CompileNameList(ParList.Children[0]);
-				foreach(CompilerValue Param in ParValues) {
-					FinalizeLocal(Param);
-				}
-				CurrFunc.NumParams = ParValues.Count;
-			}
-
-			if(FuncBlock != null)
-				CompileBlock(FuncBlock); 
-
-			CurrFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1); // default return
-
-			PopLocalScope();
-
-			Function CompletedFunction = CurrFunc;
-
-			//Functions.Add(NewFunc);
-			FunctionStack.Pop();  // we are done
-			CurrFunc = FunctionStack.Peek();
-
-			CurrFunc.SubFunctions.Add(CompletedFunction);
 
 
 			CompilerValue GVal = GetGlobalIndex(FuncNameStr);
-			CompilerValue ClosureReg = new CompilerValue(GetFreeRegister());
-			//int UpValCount = 0;
-			int FunctionNumber = CurrFunc.SubFunctions.Count - 1;
-			CurrFunc.Instructions.Add(Instruction.OP.CLOSURE, ClosureReg.Index, FunctionNumber);
+			CompilerValue ClosureReg = CompileFunctionBody(FuncBody);
+
 			EmitAssignOp(GVal, ClosureReg);
-			//CurrFunc.Instructions.Add(Instruction.OP.SETGLOBAL, ClosureReg.Index, GVal.Index);
+
 			FreeRegister(GVal);
 			FreeRegister(ClosureReg);
 		}
@@ -1418,6 +1370,10 @@ namespace Cheese
 						//Result.Add(Dest);
 					}
 					// '...' ???
+				} else if(Child.Type == ParseNode.EType.FUNCTION) {
+					ParseNode FuncBody = Child.Children[1]; // [0] is 'function'
+					CompilerValue ClosureVal = CompileFunctionBody(FuncBody);
+					Result.Add(ClosureVal);
 				} else if(Child.Type == ParseNode.EType.UN_OP_WRAP) {
 					Result.Add(CompileUnOp(Child, LVals, RVals));
 				} else if(Child.Type == ParseNode.EType.MATH_BIN_OP_WRAP) {
@@ -1479,10 +1435,14 @@ namespace Cheese
 				ParseNode ClassFuncName = null;
 				ParseNode Args = null;
 
+				CompilerValue SelfKey = null;
+
 				if(NameAndArgs.Children[0].Type == ParseNode.EType.TERMINAL &&
 					NameAndArgs.Children[0].Token.IsOperator(":")) {
 					ClassFuncName = NameAndArgs.Children[1];
 					// OP.SELF 
+					// Result[ClassFuncName]
+					SelfKey = GetConstIndex(ClassFuncName.Token.Value);
 					Args = NameAndArgs.Children[2];
 				} else {
 					Args = NameAndArgs.Children[0];
@@ -1492,8 +1452,12 @@ namespace Cheese
 				if(LVals != null && RVals != null)
 					RetCount = LVals.Count - RVals.Count;
 				int ArgCount = CountArgs(Args);
+				int ArgOffset = 1;
 
-				int StackSpaceNeeded = Math.Max(RetCount, ArgCount+1);
+				if(SelfKey != null)
+					ArgOffset = 2;
+
+				int StackSpaceNeeded = Math.Max(RetCount, ArgCount+ArgOffset);
 
 				Console.WriteLine(" R:{0}  A:{1}  SN:{2}", RetCount, ArgCount, StackSpaceNeeded);
 				Console.Write(" UR: ");
@@ -1513,15 +1477,27 @@ namespace Cheese
 					StackSpace = GetStackFrame(FuncVal.Index, StackSpaceNeeded);
 				else 
 					StackSpace = GetStackFrame(0, StackSpaceNeeded);
-				EmitAssignOp(StackSpace[0], FuncVal);
-				FuncVal = StackSpace[0];
 
+				if(SelfKey == null) {
+					EmitAssignOp(StackSpace[0], FuncVal);
+					FuncVal = StackSpace[0];
+				} else {
+					//FuncVal.Key = SelfKey;
+					FreeRegister(StackSpace[0]);
+					CompilerValue TReg = GetTReg();
+					EmitToRegisterOp(TReg, FuncVal);
+					//EmitAssignOp(StackSpace[0], FuncVal); 
+					CurrFunc.Instructions.Add(Instruction.OP.SELF, StackSpace[0].Index, TReg.Index, SelfKey.Index, SelfKey.IsConstant); 
+					FuncVal = StackSpace[0];
+					ClaimRegister(StackSpace[0]);
+					ClaimRegister(StackSpace[1]);
+				}
 				Console.WriteLine(" FV:{0} ", FuncVal.ToString());
 
 				//  Allocate LVals for args? Pass into CompileArgs?
 				VList ArgRegs = new VList(ArgCount);
 				for(int i =0; i < ArgCount; i++) 
-					ArgRegs.Add(StackSpace[i+1]);
+					ArgRegs.Add(StackSpace[i+ArgOffset]);
 				VList ArgVs = CompileArgs(Args, ArgRegs);
 				for(int i =0; i < ArgCount; i++)  {
 					EmitAssignOp(ArgRegs[i], ArgVs[i]);
@@ -1530,7 +1506,7 @@ namespace Cheese
 				// Claim ArgRegs
 				ClaimStackFrame(ArgRegs);
 
-				CurrFunc.Instructions.Add(Instruction.OP.CALL, FuncVal.Index, ArgCount+1, RetCount+1);
+				CurrFunc.Instructions.Add(Instruction.OP.CALL, FuncVal.Index, ArgCount+ArgOffset, RetCount+1);
 				// Add return regs to Result?
 				for(int i = 0; i < RetCount; i++)
 					Result.Add(StackSpace[i]);
@@ -1695,6 +1671,66 @@ namespace Cheese
 			}
 
 			return ArgCount;
+		}
+
+		CompilerValue CompileFunctionBody(ParseNode FuncBody) {
+			// funcbody : '(' (parlist1)? ')' block 'end';';
+
+			ParseNode ParList = null, FuncBlock = null;
+			if(FuncBody.Children[1].Type == ParseNode.EType.PAR_LIST) {
+				ParList = FuncBody.Children[1];
+				FuncBlock = FuncBody.Children[3];
+			} else {
+				ParList = null;
+				FuncBlock = FuncBody.Children[2];
+			}
+
+			if(FuncBlock.IsTerminal() && FuncBlock.Token.IsKeyword("end"))
+				FuncBlock = null;
+
+
+			// push function..
+			Function NewFunc = new Function();
+			FunctionStack.Push(NewFunc);
+			CurrFunc = NewFunc;
+
+			PushLocalScope();
+
+			// Parse ParList, List of Args/Locals?
+			// Do it after CurrFunc shift
+			// FIXME: '...'
+			// VList ParValues = CompileParList(ParList);
+			VList ParValues;
+			if(ParList != null) {
+				ParValues = CompileNameList(ParList.Children[0]);
+				foreach(CompilerValue Param in ParValues) {
+					FinalizeLocal(Param);
+				}
+				CurrFunc.NumParams = ParValues.Count;
+			}
+
+			if(FuncBlock != null)
+				CompileBlock(FuncBlock); 
+
+			CurrFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1); // default return
+
+			PopLocalScope();
+
+			Function CompletedFunction = CurrFunc;
+
+			//Functions.Add(NewFunc);
+			FunctionStack.Pop();  // we are done
+			CurrFunc = FunctionStack.Peek();
+
+			CurrFunc.SubFunctions.Add(CompletedFunction);
+
+
+
+			CompilerValue ClosureReg = new CompilerValue(GetFreeRegister());
+			//int UpValCount = 0;
+			int FunctionNumber = CurrFunc.SubFunctions.Count - 1;
+			CurrFunc.Instructions.Add(Instruction.OP.CLOSURE, ClosureReg.Index, FunctionNumber);
+			return ClosureReg;
 		}
 
 		CompilerValue CompileTableConstructor(ParseNode TableCons, VList LVals=null, VList RVals=null) {
