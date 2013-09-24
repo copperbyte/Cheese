@@ -328,7 +328,7 @@ namespace Cheese.Machine
 				}
 				
 				// NOT   // R(A) := ~R(B)
-				case Instruction.OP.UNM: {
+				case Instruction.OP.NOT: {
 					LuaValue SV;
 					SV = Stack[CurrOp.B];
 
@@ -370,6 +370,8 @@ namespace Cheese.Machine
 						Stack[CurrOp.A] = new LuaInteger( ST.Length + ST.Count );
 						continue;
 					}
+					// error
+					continue;
 				}
 
 				// CONCAT   // R(A) := R(B) .. - .. R(C)
