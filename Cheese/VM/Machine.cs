@@ -308,6 +308,51 @@ namespace Cheese.Machine
 						continue;
 					}
 				}
+
+				// UNM   // R(A) := -R(B)
+				case Instruction.OP.UNM: {
+					LuaValue SV;
+					SV = Stack[CurrOp.B];
+
+					if(SV is LuaInteger) {
+						LuaInteger SI = SV as LuaInteger;
+						Stack[CurrOp.A] = new LuaInteger(-SI.Integer);
+						continue;
+					} 
+					else {
+						LuaNumber SN = SV as LuaNumber;
+						Stack[CurrOp.A] = new LuaNumber(-SN.Number);
+						continue;
+					}
+				}
+				
+				// NOT   // R(A) := ~R(B)
+				case Instruction.OP.UNM: {
+					LuaValue SV;
+					SV = Stack[CurrOp.B];
+
+					if(SV is LuaBool) {
+						LuaBool SB = SV as LuaBool;
+						if(SB.Value)
+							Stack[CurrOp.A] = LuaBool.False;
+						else
+							Stack[CurrOp.A] = LuaBool.True;
+						continue;
+					} else if(SV is LuaNil) {
+						Stack[CurrOp.A] = LuaBool.True;
+					}
+					else if(SV is LuaInteger) {
+						LuaInteger SI = SV as LuaInteger;
+						Stack[CurrOp.A] = (SI.Integer == 0 ? LuaBool.True : LuaBool.False);
+						continue;
+					}
+					else if(SV is LuaNumber) {
+						LuaNumber SN = SV as LuaNumber;
+						Stack[CurrOp.A] = (SN.Number == 0.0 ? LuaBool.True : LuaBool.False);
+						continue;
+					}
+					continue;
+				}
 				
 				// EQ   // if ((RK(B) == RK(C)) ~= A) then PC++
 				case Instruction.OP.EQ: {
