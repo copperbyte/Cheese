@@ -201,8 +201,8 @@ namespace Cheese.Machine
 			SystemOut = Out;
 		}
 
-		public Chunk Compile(string Code) {
-			Parser Parsy = new Parser(new StringReader(Code));
+		public Chunk Compile(TextReader Input) {
+			Parser Parsy = new Parser(Input);
 			ParseNode Root = Parsy.Parse();
 			Parsy.PrintTree(Root);
 
@@ -212,7 +212,15 @@ namespace Cheese.Machine
 			return CompiledChunk;
 		}
 
+		public Chunk Compile(string Code) {
+			return Compile(new StringReader(Code));
+		}
 
+
+		public void Execute(TextReader Input) {
+			Chunk Compiled = Compile(Input);
+			ExecuteChunk(Compiled);
+		}
 		public void Execute(string Code) {
 			Chunk Compiled = Compile(Code);
 			ExecuteChunk(Compiled);
