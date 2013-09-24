@@ -3,8 +3,10 @@ using System.IO;
 using System.Text;
 using System.Collections.Generic;
 
+using Cheese;
 using Machine = Cheese.Machine;
-namespace Cheese
+
+namespace CheeseExec
 {
 
 
@@ -35,12 +37,14 @@ namespace Cheese
 
 			StreamReader TestFileReader = new StreamReader(TestFile);
 
+			/*
 			Parser Parsy = new Parser(TestFileReader);
 			ParseNode Root = Parsy.Parse();
 			Parsy.PrintTree(Root);
 
 			Compiler Comper = new Compiler();
 			Chunk CompiledChunk = Comper.Compile(Root);
+			*/
 
 			// Create Environment (which contains VM)
 			// Environment.ExecuteChunk(CompiledChunk)
@@ -51,7 +55,8 @@ namespace Cheese
 			StringWriter LocalOut = new StringWriter();
 			LuaEnv.SetOutput(LocalOut);
 
-			LuaEnv.ExecuteChunk(CompiledChunk);
+			//LuaEnv.ExecuteChunk(CompiledChunk);
+			LuaEnv.Execute(TestFileReader);
 
 			Console.WriteLine("**{0}**", LocalOut.ToString());
 
