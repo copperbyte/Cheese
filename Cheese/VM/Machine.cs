@@ -353,6 +353,23 @@ namespace Cheese.Machine
 					}
 					continue;
 				}
+
+				// LEN   // R(A) := len R(B)
+				case Instruction.OP.LEN: {
+					LuaValue SV;
+					SV = Stack[CurrOp.B];
+
+					if(SV is LuaString) {
+						LuaString SS = SV as LuaString;
+						Stack[CurrOp.A] = new LuaInteger(SS.Text.Length);
+						continue;
+					} 
+					else if(SV is LuaTable) {
+						LuaTable ST = SV as LuaTable;
+						Stack[CurrOp.A] = new LuaInteger( ST.Length + ST.Count );
+						continue;
+					}
+				}
 				
 				// EQ   // if ((RK(B) == RK(C)) ~= A) then PC++
 				case Instruction.OP.EQ: {
