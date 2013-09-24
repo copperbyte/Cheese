@@ -5,6 +5,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cheese", "Cheese\Cheese.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NUnitTests", "NUnitTests\NUnitTests.csproj", "{E9B4EC3E-8938-49D6-B3A5-BFE5B573EA7D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CheeseExec", "CheeseExec\CheeseExec.csproj", "{A316B4D2-68D5-4820-86DE-80A4A09E9001}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -15,10 +17,12 @@ Global
 		{695608E4-9793-436C-9318-C2BABA96C5B6}.Debug|x86.Build.0 = Debug|x86
 		{695608E4-9793-436C-9318-C2BABA96C5B6}.Release|x86.ActiveCfg = Release|x86
 		{695608E4-9793-436C-9318-C2BABA96C5B6}.Release|x86.Build.0 = Release|x86
+		{A316B4D2-68D5-4820-86DE-80A4A09E9001}.Debug|x86.ActiveCfg = Debug|x86
+		{A316B4D2-68D5-4820-86DE-80A4A09E9001}.Debug|x86.Build.0 = Debug|x86
+		{A316B4D2-68D5-4820-86DE-80A4A09E9001}.Release|x86.ActiveCfg = Release|x86
+		{A316B4D2-68D5-4820-86DE-80A4A09E9001}.Release|x86.Build.0 = Release|x86
 		{E9B4EC3E-8938-49D6-B3A5-BFE5B573EA7D}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{E9B4EC3E-8938-49D6-B3A5-BFE5B573EA7D}.Debug|x86.Build.0 = Debug|Any CPU
 		{E9B4EC3E-8938-49D6-B3A5-BFE5B573EA7D}.Release|x86.ActiveCfg = Release|Any CPU
-		{E9B4EC3E-8938-49D6-B3A5-BFE5B573EA7D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
 		StartupItem = Cheese\Cheese.csproj
