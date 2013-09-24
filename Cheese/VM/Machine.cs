@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 using Cheese;
 
@@ -369,6 +370,21 @@ namespace Cheese.Machine
 						Stack[CurrOp.A] = new LuaInteger( ST.Length + ST.Count );
 						continue;
 					}
+				}
+
+				// CONCAT   // R(A) := R(B) .. - .. R(C)
+				case Instruction.OP.CONCAT: {
+
+					StringBuilder Builder = new StringBuilder(64);
+					for(int Index = CurrOp.B; Index <= CurrOp.C; Index++) {
+						LuaValue SV;
+						SV = Stack[Index];
+
+						Builder.Append(SV.ToString());
+					}
+
+					Stack[CurrOp.A] = new LuaString(Builder.ToString());
+					continue;
 				}
 				
 				// EQ   // if ((RK(B) == RK(C)) ~= A) then PC++
