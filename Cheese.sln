@@ -25,6 +25,6 @@ Global
 		{E9B4EC3E-8938-49D6-B3A5-BFE5B573EA7D}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(MonoDevelopProperties) = preSolution
-		StartupItem = Cheese\Cheese.csproj
+		StartupItem = CheeseExec\CheeseExec.csproj
 	EndGlobalSection
 EndGlobal
