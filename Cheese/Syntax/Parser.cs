@@ -15,10 +15,12 @@ namespace Cheese
 			MATH_BINOP,
 			COMP_BINOP,
 			LOGI_BINOP,
+			CONC_BINOP,
 			UN_OP_WRAP,
 			MATH_BIN_OP_WRAP,
 			COMP_BIN_OP_WRAP,
 			LOGI_BIN_OP_WRAP,
+			CONC_BIN_OP_WRAP,
 			FIELD_SEP,
 			FIELD,
 			FIELD_LIST,
@@ -140,9 +142,10 @@ namespace Cheese
 		Token Curr, Look, LookFar;
 
 		SortedSet<string> UnOps = new SortedSet<string>(){ "-", "not", "#" }, 
-			MathBinOps = new SortedSet<string>(){ "+", "-", "*", "/", "^", "%", ".." },
+			MathBinOps = new SortedSet<string>(){ "+", "-", "*", "/", "^", "%" },
 			CompBinOps = new SortedSet<string>(){ "<", "<=", ">", ">=", "==", "~=" },
 			LogiBinOps = new SortedSet<string>(){ "and", "or" },
+			ConcBinOps = new SortedSet<string>(){ ".." },
 			FieldSeps = new SortedSet<string>(){ ",", ";" };
 
 		public Parser(TextReader Reader) {
@@ -723,7 +726,8 @@ namespace Cheese
 
 			while (MathBinOps.Contains(Curr.Value) || 
 			       CompBinOps.Contains(Curr.Value) ||
-			       LogiBinOps.Contains(Curr.Value)) {
+			       LogiBinOps.Contains(Curr.Value) ||
+			       ConcBinOps.Contains(Curr.Value)) {
 				if(MathBinOps.Contains(Curr.Value)) {
 					ParseNode BinOpWrap = new ParseNode(ParseNode.EType.MATH_BIN_OP_WRAP);
 					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
@@ -746,6 +750,23 @@ namespace Cheese
 					Exp.Children.Clear();
 					BinOpWrap.Add(ParseLogiBinOp());
 					BinOpWrap.Add(ParseExp());
+					Exp.Add(BinOpWrap);
+				}
+				else if(ConcBinOps.Contains(Curr.Value)) {
+					ParseNode BinOpWrap = new ParseNode(ParseNode.EType.CONC_BIN_OP_WRAP);
+					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
+					Exp.Children.Clear();
+					BinOpWrap.Add(ParseConcBinOp());
+					ParseNode Suffix = ParseExp();
+
+					if(Suffix.Children[0].Type == ParseNode.EType.CONC_BIN_OP_WRAP) {
+						ParseNode ChildConc = Suffix.Children[0];
+						BinOpWrap.Children.AddRange(ChildConc.Children);
+					}
+					else {
+						BinOpWrap.Add(Suffix);
+					}
+
 					Exp.Add(BinOpWrap);
 				}
 			}
@@ -1130,6 +1151,21 @@ namespace Cheese
 				return BinOp;
 			} else {
 				throw new ParseException("logical binary operator", Curr);
+			}
+		}
+
+		internal ParseNode ParseConcBinOp() {
+			/*	binop : '+' | '-' | '*' | '/' | '^' | '%' | '..' | 
+		 			'<' | '<=' | '>' | '>=' | '==' | '~=' | 
+		 			'and' | 'or';
+			*/
+			if (ConcBinOps.Contains(Curr.Value)) {
+				ParseNode BinOp = new ParseNode(Curr);
+				BinOp.Type = ParseNode.EType.CONC_BINOP;
+				Advance();
+				return BinOp;
+			} else {
+				throw new ParseException("concat binary operator", Curr);
 			}
 		}
 

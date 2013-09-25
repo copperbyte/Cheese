@@ -1421,6 +1421,10 @@ namespace Cheese
 					Result.Add(CompileMathBinOp(Child, LVals, RVals));
 				} else if(Child.Type == ParseNode.EType.COMP_BIN_OP_WRAP) {
 					Result.Add(CompileCompBinOp(Child, LVals, RVals));
+				} else if(Child.Type == ParseNode.EType.LOGI_BIN_OP_WRAP) {
+					Result.Add(CompileLogiBinOp(Child, LVals, RVals));
+				} else if(Child.Type == ParseNode.EType.CONC_BIN_OP_WRAP) {
+					Result.Add(CompileConcBinOp(Child, LVals, RVals));
 				} else if(Child.Type == ParseNode.EType.PREFIX_EXP) {
 					// might be a var, might be a function call
 					Result.AddRange(CompilePrefixExp(Child, LVals, RVals));
@@ -1898,8 +1902,6 @@ namespace Cheese
 				InstOp = Instruction.OP.MOD;
 
 
-			// FIXME: Handle input values as Reg-or-Consts
-
 			CompilerValue LV = LVs[0];
 			CompilerValue RV = RVs[0];
 			
@@ -2000,6 +2002,81 @@ namespace Cheese
 			}
 
 			return DestVal;
+		}
+
+		CompilerValue CompileLogiBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
+			//  TEST A C if not (R(A) <=> C) then PC++
+			//  TESTSET A B C if (R(B) <=> C) then R(A) := R(B) else PC++
+
+			ParseNode Left = BinOp.Children[0];
+			ParseNode Op = BinOp.Children[1];
+			ParseNode Right = BinOp.Children[2];
+
+
+			VList LVs = CompileExp(Left);
+			VList RVs = CompileExp(Right);
+
+
+			if(Op.Token.IsOperator("and"))
+				;//	InstOp = Instruction.OP.LT;
+			else if(Op.Token.IsOperator("or"))
+				;//	InstOp = Instruction.OP.LE;
+			
+
+			CompilerValue LV = LVs[0], RV = RVs[0];
+
+			if(!LV.IsRegister)
+				LV = GetAsRegister(LV);
+			if(!RV.IsRegister)
+				RV = GetAsRegister(RV);
+
+			//int CompValue = 0;
+
+
+			FreeRegister(LV);
+			FreeRegister(RV);
+
+			return null;//DestVal;
+		}
+
+		CompilerValue CompileConcBinOp(ParseNode ConcatOp, VList LVals = null, VList RVals = null) {
+
+			List<ParseNode> Exps = new List<ParseNode>();
+			for(int Loop = 0; Loop < ConcatOp.Children.Count; Loop += 2) {
+				ParseNode Child = ConcatOp.Children[Loop];
+				Exps.Add(Child);
+			}
+
+			int MinReg = 300, MaxReg = 0;
+			VList PartRegs = new VList();
+			foreach(ParseNode Exp in Exps) {
+				VList TVs = CompileExp(Exp);
+				foreach(CompilerValue Value in TVs) {
+					CompilerValue AsRegValue = GetAsRegister(Value);
+
+					if(MinReg < 300 && AsRegValue.Index < MinReg) {
+						CompilerValue TReg = GetTReg();
+						CurrFunc.Instructions.Add(Instruction.OP.MOVE, TReg.Index, AsRegValue.Index);
+						FreeRegister(AsRegValue);
+						AsRegValue = TReg;
+						ClaimRegister(TReg);
+					}
+
+					PartRegs.Add(AsRegValue);
+					MinReg = Math.Min(MinReg, AsRegValue.Index);
+					MaxReg = Math.Max(MaxReg, AsRegValue.Index);
+				}
+			}
+
+
+			foreach(CompilerValue Value in PartRegs) {
+				FreeRegister(Value.Index);
+			}
+
+			CompilerValue Result = GetLRegorTReg(LVals, RVals);
+			CurrFunc.Instructions.Add(Instruction.OP.CONCAT, Result.Index, MinReg, MaxReg);
+			ClaimRegister(Result);
+			return Result;
 		}
 
 		CompilerValue CompileUnOp(ParseNode UnOp, VList LVals = null, VList RVals = null) {

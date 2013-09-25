@@ -1,0 +1,14 @@
+--Super Simple Test Concat
+
+object = { "foo", "bar", "baz" };
+
+t1 = object[1] .. object[2] .. object[3];
+
+t2 = '';
+for k,v in ipairs(object) do
+  t2 = t2 .. v;
+end
+
+print(t1, t2);
+
+

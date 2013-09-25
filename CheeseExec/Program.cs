@@ -27,7 +27,8 @@ namespace CheeseExec
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_five.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_six.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\timetest.lua",FileMode.Open);
-			FileStream TestFile = new FileStream("..\\..\\TestFiles\\self_test.slua",FileMode.Open);
+			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\self_test.slua",FileMode.Open);
+			FileStream TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\concat_test.slua",FileMode.Open);
 
 			// TODO:  	UPVAL, CLOSE , everything
 			// 			UNOP ,  machine
