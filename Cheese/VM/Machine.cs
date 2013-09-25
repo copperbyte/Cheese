@@ -435,7 +435,7 @@ namespace Cheese.Machine
 					if(LVal.GetType() == typeof(LuaNumber)) {
 						CompInt = ((LVal as LuaNumber).Number <= (RVal as LuaNumber).Number) ? 1 : 0;
 					} else if(LVal.GetType() == typeof(LuaInteger)) {
-						CompInt = ((LVal as LuaInteger).Integer < (RVal as LuaInteger).Integer) ? 1 : 0;
+						CompInt = ((LVal as LuaInteger).Integer <= (RVal as LuaInteger).Integer) ? 1 : 0;
 					} else if(LVal.GetType() == typeof(LuaString)) {
 						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) != 1) ? 1 : 0;
 					}
