@@ -130,6 +130,67 @@ namespace NUnitTests
 		}
 
 		[Test()]
+		public void UnmTest()
+		{
+			string Code = @"
+				i = 10;
+				j = -i;
+				print(i,j); ";
+
+			string Expected = "10\t-10\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void NotTest()
+		{
+			string Code = @"
+				i = true;
+				j = not i;
+				print(i,j); ";
+
+			string Expected = "true\tfalse\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void LenTest()
+		{
+			string Code = @"
+				str = ""somestr"";
+				lstr = #str;
+				tbl = { ""a"", ""b"", ""c"", [""a""]=1, [""b""]=2, [""c""]=3 };
+				ltbl = #tbl;
+				print(lstr,ltbl); ";
+
+			string Expected = "7\t3\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void ConcatTest()
+		{
+			string Code = @"
+				object = { ""foo"", ""bar"", ""baz"" };
+
+				t1 = object[1] .. object[2] .. object[3];
+
+				t2 = '';
+				for k,v in ipairs(object) do
+				  t2 = t2 .. v;
+				end
+
+				print(t1, t2); ";
+
+			string Expected = "foobarbaz\tfoobarbaz\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
 		public void AssignCompTest()
 		{
 			string Code = @"
@@ -242,7 +303,6 @@ namespace NUnitTests
 
 			ConsoleCompareTest(Code, Expected);
 		}
-
 
 		[Test()]
 		public void WhileLoopTest()
