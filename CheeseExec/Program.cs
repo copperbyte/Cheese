@@ -17,9 +17,13 @@ namespace CheeseExec
 			//string Input = "Hello World [[longstr]] [==[longerstr]==] 0101 >= 234.56 0xFF and \"QUOTED\" --[[ COMMENT 1 ]] -- COMMENT 2 \n __index . .. ... ; : :: ;;  _9999_ ( 1 + 2 ) = 3 break  \"QUOTE ESCAPE \n YEAH\" !";
 			//StringReader Reader = new StringReader (Input);
 			//Scanner Scans = new Scanner(Reader);
-			//FileStream TestFile = new FileStream("my_rules.lua",FileMode.Open);
 			//FileStream TestFile = new FileStream("test.lua",FileMode.Open);
+			FileStream TestFile = null;
 
+			if(args.Length >= 1) {
+				TestFile = new FileStream(args[0], FileMode.Open);
+			}
+			else {
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_one.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_two.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_three.slua",FileMode.Open);
@@ -28,13 +32,18 @@ namespace CheeseExec
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_six.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\timetest.lua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\self_test.slua",FileMode.Open);
-			FileStream TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\concat_test.slua",FileMode.Open);
+				TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\concat_test.slua",FileMode.Open);
+			}
+
 
 			// TODO:  	UPVAL, CLOSE , everything
-			// 			UNOP ,  machine
+			//          and, or, compiler
 			//			VARARG , everything
 			// 			TAILCALL , everything
 			//			System Functions
+			//   		Less allocations? Cache simple values? 
+			//          String-to-number auto-converts?
+
 
 			StreamReader TestFileReader = new StreamReader(TestFile);
 
@@ -47,10 +56,7 @@ namespace CheeseExec
 			Chunk CompiledChunk = Comper.Compile(Root);
 			*/
 
-			// Create Environment (which contains VM)
-			// Environment.ExecuteChunk(CompiledChunk)
-			//  executes Chunk RootFunc, causes others funcs and such 
-			//  to be loaded into the environment
+
 
 			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
 			StringWriter LocalOut = new StringWriter();
