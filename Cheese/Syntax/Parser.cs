@@ -646,7 +646,7 @@ namespace Cheese
 		internal int OperatorPrecedence(Token Tok) {
 			// http://www.lua.org/pil/3.5.html
 			// 8    ^
-			// 7    not  - (unary)
+			// 7    not  - (unary) #
 			// 6	*   /
 			// 5	+   -
 			// 4	..
@@ -659,6 +659,8 @@ namespace Cheese
 			if(Length == 1) {
 				if(First == '^') 
 					return 8;
+				else if(First == '#')
+					return 7;
 				else if(First == '*' || First == '/')
 					return 6;
 				else if(First == '+' || First == '-')
@@ -696,7 +698,7 @@ namespace Cheese
 			}
 			return false;
 		}
-		internal ParseNode ParseExp() {
+		internal ParseNode ParseExp(int MinPrecedence = 0) {
 			// exp :  ('nil' | 'false' | 'true' | number | string | '...' | function | prefixexp | tableconstructor | unop exp) (binop exp)* ;
 			ParseNode Exp = new ParseNode(ParseNode.EType.EXP);
 
@@ -720,7 +722,7 @@ namespace Cheese
 			} else if(UnOps.Contains(Curr.Value)) {
 				ParseNode UnOpWrap = new ParseNode(ParseNode.EType.UN_OP_WRAP);
 				UnOpWrap.Add(ParseUnOp());
-				UnOpWrap.Add(ParseExp());
+				UnOpWrap.Add(ParseExp(MinPrecedence));
 				Exp.Add(UnOpWrap);
 			}
 
@@ -728,12 +730,18 @@ namespace Cheese
 			       CompBinOps.Contains(Curr.Value) ||
 			       LogiBinOps.Contains(Curr.Value) ||
 			       ConcBinOps.Contains(Curr.Value)) {
+
+				int CurrPres = OperatorPrecedence(Curr);
+
+				if(CurrPres < MinPrecedence)
+					break;
+
 				if(MathBinOps.Contains(Curr.Value)) {
 					ParseNode BinOpWrap = new ParseNode(ParseNode.EType.MATH_BIN_OP_WRAP);
 					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
 					Exp.Children.Clear();
 					BinOpWrap.Add(ParseMathBinOp());
-					BinOpWrap.Add(ParseExp());
+					BinOpWrap.Add(ParseExp(CurrPres));
 					Exp.Add(BinOpWrap);
 				}
 				else if(CompBinOps.Contains(Curr.Value)) {
@@ -741,7 +749,7 @@ namespace Cheese
 					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
 					Exp.Children.Clear();
 					BinOpWrap.Add(ParseCompBinOp());
-					BinOpWrap.Add(ParseExp());
+					BinOpWrap.Add(ParseExp(CurrPres));
 					Exp.Add(BinOpWrap);
 				}
 				else if(LogiBinOps.Contains(Curr.Value)) {
@@ -749,7 +757,17 @@ namespace Cheese
 					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
 					Exp.Children.Clear();
 					BinOpWrap.Add(ParseLogiBinOp());
-					BinOpWrap.Add(ParseExp());
+					//BinOpWrap.Add(ParseExp());
+					// Flatten a chain of same ops
+					ParseNode Suffix = ParseExp(CurrPres);
+					if(Suffix.Children[0].Type == ParseNode.EType.LOGI_BIN_OP_WRAP &&
+					   Suffix.Children[0].Children[1].Token.Value == BinOpWrap.Children[1].Token.Value) {
+						ParseNode ChildLogi = Suffix.Children[0];
+						BinOpWrap.Children.AddRange(ChildLogi.Children);
+					}
+					else {
+						BinOpWrap.Add(Suffix);
+					}
 					Exp.Add(BinOpWrap);
 				}
 				else if(ConcBinOps.Contains(Curr.Value)) {
@@ -757,8 +775,7 @@ namespace Cheese
 					BinOpWrap.Children = new List<ParseNode>(Exp.Children);
 					Exp.Children.Clear();
 					BinOpWrap.Add(ParseConcBinOp());
-					ParseNode Suffix = ParseExp();
-
+					ParseNode Suffix = ParseExp(CurrPres);
 					if(Suffix.Children[0].Type == ParseNode.EType.CONC_BIN_OP_WRAP) {
 						ParseNode ChildConc = Suffix.Children[0];
 						BinOpWrap.Children.AddRange(ChildConc.Children);
@@ -766,7 +783,6 @@ namespace Cheese
 					else {
 						BinOpWrap.Add(Suffix);
 					}
-
 					Exp.Add(BinOpWrap);
 				}
 			}

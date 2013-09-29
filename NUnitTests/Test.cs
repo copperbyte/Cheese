@@ -191,6 +191,19 @@ namespace NUnitTests
 		}
 
 		[Test()]
+		public void PrecedenceTest()
+		{
+			string Code = @"
+				x = 2 + 3 * 4 + 5;
+                y = 2 + 3 ^ 2 * 3 + 4;
+                print(x, y); ";
+
+			string Expected = "19\t33\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
 		public void AssignCompTest()
 		{
 			string Code = @"
