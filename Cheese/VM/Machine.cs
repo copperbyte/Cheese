@@ -75,7 +75,7 @@ namespace Cheese.Machine
 			// Track Top Pointer more exactly?
 		}*/
 
-		public void PushFrame(int PC, Function Func, int ArgBase) {
+		public void PushFrame(int PC, Function Func, int ArgBase, int ArgCount) {
 			if(Func != null)
 				Reserve(Func.MaxStackSize - ArgBase + 1);
 
@@ -86,21 +86,32 @@ namespace Cheese.Machine
 			//Console.WriteLine("Stack.PushFrame  Base {0} => {1} ", CurrFrame.Base, NewBase);
 			CurrFrame.Base = NewBase; //CurrFrame.Top;
 			CurrFrame.Func = Func;
+			CurrFrame.Top = NewBase + ArgCount;
 		}
 
-		public int PopFrame() {
+		public int PopFrame(int RetCount) {
 			//Console.Write("Stack.PopFrame  Base {0}", CurrFrame.Base);
 			if(Frames.Count == 0) {
 				CurrFrame.Base = 0;
 				CurrFrame.Top = 0;
 				CurrFrame.Func = null;
 			} else {
+				int NewTop = CurrFrame.Base;
+				if(RetCount > 0)
+					NewTop += RetCount;
 				CurrFrame = Frames[Frames.Count - 1];
 				Frames.RemoveAt(Frames.Count - 1);
+				CurrFrame.Top = NewTop;
 			}
 			//Console.WriteLine(" => {0} ", CurrFrame.Base);
 			// Not actually freeing space in Registers
 			// FIXME: LuaNil.Nil them out...
+
+			if(RetCount > 0) {
+				for(int I = CurrFrame.Top+1; I < Registers.Count; I++) {
+					Registers[I] = LuaNil.Nil;
+				}
+			}
 
 			return CurrFrame.PC;
 		}
@@ -112,20 +123,27 @@ namespace Cheese.Machine
 
 			int OldBase = CurrFrame.Base;
 			int NewBase = CurrFrame.Base + ArgBase + 1;
+			int NewTop = 0;
 
 			if(ArgCount == 0) {
 				; // Loop To Top?
 			} else {
 				for(int I = 0; I <= (ArgCount-1); I++) {
 					Registers[OldBase + I - 1] = Registers[NewBase + I - 1];
+					NewTop = OldBase + I - 1;
 				}
 			}
 
 			CurrFrame.Base = OldBase;  // NewBase; doesnt update! 
 			CurrFrame.Func = Func;
+			CurrFrame.Top = NewTop;
 
 			if(Func != null)
 				Reserve(Func.MaxStackSize - ArgBase + 1);
+
+			for(int I = CurrFrame.Top+1; I < Registers.Count; I++) {
+				Registers[I] = LuaNil.Nil;
+			}
 		}
 
 		internal Function Func {
@@ -175,12 +193,12 @@ namespace Cheese.Machine
 
 		internal void ExecuteFunction(Function Function, int CallDepth=1) {
 
-			Stack.PushFrame(ProgramCounter, Function, 0);
+			Stack.PushFrame(ProgramCounter, Function, 0, 1);
 			ProgramCounter = 0;
 
 			ExecuteMachine(CallDepth);
 
-			ProgramCounter = Stack.PopFrame();
+			ProgramCounter = Stack.PopFrame(0);
 		}
 
 		private void ExecuteMachine(int CallDepth=1) {
@@ -606,11 +624,11 @@ namespace Cheese.Machine
 
 						// Stack is prepped for 2 Args already;
 
-						Stack.PushFrame(ProgramCounter, null, CB);
+						Stack.PushFrame(ProgramCounter, null, CB, CurrOp.B);
 
 						FuncDelegate.Call(Environment, Stack, 3, CurrOp.C+2);
 
-						ProgramCounter = Stack.PopFrame();
+						ProgramCounter = Stack.PopFrame(CurrOp.C+2);
 						// Decode ReturnValue, assign return parts
 
 						if(CurrOp.C == 1) {
@@ -625,10 +643,10 @@ namespace Cheese.Machine
 					}
 					else if(GeneratorVal is LuaClosure) {
 						LuaClosure ClosureValue = GeneratorVal as LuaClosure;
-						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CB);
+						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CB, 2);
 						ProgramCounter = 0;
 						ExecuteMachine(1);
-						ProgramCounter = Stack.PopFrame();
+						ProgramCounter = Stack.PopFrame(CurrOp.C);
 					}
 
 					ProgramCounter = CapPC;
@@ -695,12 +713,12 @@ namespace Cheese.Machine
 							; // args are on stack already
 						}
 
-						Stack.PushFrame(ProgramCounter, null, CurrOp.A);
+						Stack.PushFrame(ProgramCounter, null, CurrOp.A, CurrOp.B);
 
 						LuaValue ReturnValue = null;
 						ReturnValue = FuncDelegate.Call(Environment, Stack, CurrOp.B, CurrOp.C);
 
-						ProgramCounter = Stack.PopFrame();
+						ProgramCounter = Stack.PopFrame(CurrOp.C);
 						// Decode ReturnValue, assign return parts
 
 						if(CurrOp.C == 1) {
@@ -718,7 +736,7 @@ namespace Cheese.Machine
 
 						// Capture Args
 
-						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CurrOp.A);
+						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CurrOp.A, CurrOp.B);
 						ProgramCounter = 0;
 						CallDepth++;
 						// UpVal storage setup?
@@ -780,10 +798,10 @@ namespace Cheese.Machine
 						if(CurrOp.B == 0) {
 							; // Handle Var Arg case
 						}
-						Stack.PushFrame(ProgramCounter, null, CurrOp.A);
+						Stack.PushFrame(ProgramCounter, null, CurrOp.A, CurrOp.B);
 						LuaValue ReturnValue = null;
 						ReturnValue = FuncDelegate.Call(Environment, Stack, CurrOp.B, CurrOp.C);
-						ProgramCounter = Stack.PopFrame();
+						ProgramCounter = Stack.PopFrame(CurrOp.C);
 
 						if(CurrOp.C == 0) {
 							; // Handle Var Returns
@@ -837,7 +855,7 @@ namespace Cheese.Machine
 					if(CallDepth == 0) // bottomed out, stop executing, not just adjust stack
 						return;
 
-					ProgramCounter = Stack.PopFrame();		
+					ProgramCounter = Stack.PopFrame(CurrOp.B);		
 					continue; // not just break, pop, etc
 				}
 
