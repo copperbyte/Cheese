@@ -99,17 +99,35 @@ namespace Cheese.Machine
 				Frames.RemoveAt(Frames.Count - 1);
 			}
 			//Console.WriteLine(" => {0} ", CurrFrame.Base);
-
-			//int RestoredPC = (int)Storage[FramePointer - 2];
-			//int RestoredFramePointer = (int)Storage[FramePointer - 1];
-
-			//TopPointer = FramePointer - 1;
-			//FramePointer = RestoredFramePointer;
-			// Not actually freeing items
+			// Not actually freeing space in Registers
+			// FIXME: LuaNil.Nil them out...
 
 			return CurrFrame.PC;
 		}
 	
+
+		public void TailCall(int PC, Function Func, int ArgBase, int ArgCount) {
+
+			Frame PrevFrame = CurrFrame; 
+
+			int OldBase = CurrFrame.Base;
+			int NewBase = CurrFrame.Base + ArgBase + 1;
+
+			if(ArgCount == 0) {
+				; // Loop To Top?
+			} else {
+				for(int I = 0; I <= (ArgCount-1); I++) {
+					Registers[OldBase + I - 1] = Registers[NewBase + I - 1];
+				}
+			}
+
+			CurrFrame.Base = OldBase;  // NewBase; doesnt update! 
+			CurrFrame.Func = Func;
+
+			if(Func != null)
+				Reserve(Func.MaxStackSize - ArgBase + 1);
+		}
+
 		internal Function Func {
 			get {
 				return CurrFrame.Func;
@@ -367,7 +385,7 @@ namespace Cheese.Machine
 					} 
 					else if(SV is LuaTable) {
 						LuaTable ST = SV as LuaTable;
-						Stack[CurrOp.A] = new LuaInteger( ST.Length + ST.Count );
+						Stack[CurrOp.A] = new LuaInteger( ST.Length );
 						continue;
 					}
 					// error
@@ -712,6 +730,76 @@ namespace Cheese.Machine
 					break;
 				}
 				
+				case Instruction.OP.TAILCALL: {
+					// pop frame, copy argument ops down, call?
+					// Only behaves that way if FuncValue is a LuaClosure
+					// If it is a LuaDelegate or LuaSysDelegate, it 
+					// behaves like a normal call, and the following return op.
+					LuaValue FuncValue = Stack[CurrOp.A];
+
+					if(FuncValue is LuaDelegate) {
+						LuaDelegate FuncDelegate = FuncValue as LuaDelegate;
+
+						LuaTable Arguments = new LuaTable();
+
+						if(CurrOp.B == 0) {
+							; // Handle Var Arg case
+						} else {
+							for(int i = CurrOp.A+1; i < CurrOp.A+CurrOp.B; i++) {
+								Arguments.Add(Stack[i]);
+							}
+						}
+
+						LuaValue ReturnValue = null;
+						ReturnValue = FuncDelegate.Call(Environment, Arguments);
+						// Decode ReturnValue, assign return parts
+
+						if(CurrOp.C == 1) {
+							; // Do nothing
+						} else if(CurrOp.C == 0) {
+							; // Handle Var Returns
+						} else if(CurrOp.C == 2) {
+							if(ReturnValue is LuaTable) {
+								LuaTable ReturnTable = ReturnValue as LuaTable;
+								if(ReturnTable.Length == 1)
+									ReturnValue = ReturnTable[0];
+							}
+							Stack[CurrOp.A] = ReturnValue;
+						} else {
+							LuaTable ReturnTable = ReturnValue as LuaTable;
+							int ri = 1;
+							for(int i = CurrOp.A; i < CurrOp.A+CurrOp.C-1; i++) {
+								Stack[i] = ReturnTable[ri]; 
+								ri++;
+							}
+						}
+					} 
+					else if(FuncValue is LuaSysDelegate) {
+						LuaSysDelegate FuncDelegate = FuncValue as LuaSysDelegate;
+
+						if(CurrOp.B == 0) {
+							; // Handle Var Arg case
+						}
+						Stack.PushFrame(ProgramCounter, null, CurrOp.A);
+						LuaValue ReturnValue = null;
+						ReturnValue = FuncDelegate.Call(Environment, Stack, CurrOp.B, CurrOp.C);
+						ProgramCounter = Stack.PopFrame();
+
+						if(CurrOp.C == 0) {
+							; // Handle Var Returns
+						} 
+					}
+					else if(FuncValue is LuaClosure) {
+						LuaClosure ClosureValue = FuncValue as LuaClosure;
+						Stack.TailCall(ProgramCounter, ClosureValue.Function, CurrOp.A, CurrOp.B);
+						ProgramCounter = 0;
+						// CallDepth -- ++ ;
+						continue;
+					}
+
+					continue;
+				}
+
 				// SELF //  R(A+1) := R(B); R(A) := R(B)[RK(C)]
 				case Instruction.OP.SELF: {
 					LuaTable SelfTable = Stack[CurrOp.B] as LuaTable;

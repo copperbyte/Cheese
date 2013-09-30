@@ -828,7 +828,24 @@ namespace Cheese
 
 		void CompileReturnStmt(ParseNode ReturnStatement) {
 			// 'return' (explist1)?
+
 			ParseNode ExpList = ReturnStatement.Children[1];
+
+			// check if explist is nothing but a single function call,
+			// if so, TAILCALL instead of RETURN.		
+			if(ExpList.Children.Count == 1) {
+				ParseNode Exp = ExpList.Children[0];
+				if (Exp.Children.Count == 1 && 
+				    Exp.Children[0].Type == ParseNode.EType.PREFIX_EXP) {
+					ParseNode PrefixExp = Exp.Children[0];
+					if(PrefixExp.Children.Count == 2) {
+						// Possible TAILCALL = true;
+						CompilePrefixExp(PrefixExp, null, null, true);
+						return;
+					}
+				}
+			}
+
 			VList RetVs = CompileExpList(ExpList);
 
 			int A = 0, B = 1;
@@ -1455,7 +1472,7 @@ namespace Cheese
 		}
 
 
-		VList CompilePrefixExp(ParseNode PrefixExp, VList LVals=null, VList RVals=null) {
+		VList CompilePrefixExp(ParseNode PrefixExp, VList LVals=null, VList RVals=null, bool AsTailCall = false) {
 			// prefixexp: varOrExp nameAndArgs*;
 			VList Result = new VList();
 
@@ -1551,7 +1568,13 @@ namespace Cheese
 				// Claim ArgRegs
 				ClaimStackFrame(ArgRegs);
 
-				CurrFunc.Instructions.Add(Instruction.OP.CALL, FuncVal.Index, ArgCount+ArgOffset, RetCount+1);
+
+				if(AsTailCall) {
+					CurrFunc.Instructions.Add(Instruction.OP.TAILCALL, FuncVal.Index, ArgCount + ArgOffset, 0);
+					CurrFunc.Instructions.Add(Instruction.OP.RETURN, FuncVal.Index, 0);
+				} else {
+					CurrFunc.Instructions.Add(Instruction.OP.CALL, FuncVal.Index, ArgCount + ArgOffset, RetCount + 1);
+				}
 				// Add return regs to Result?
 				for(int i = 0; i < RetCount; i++)
 					Result.Add(StackSpace[i]);
@@ -2004,13 +2027,59 @@ namespace Cheese
 			return DestVal;
 		}
 
-		CompilerValue CompileLogiBinOp(ParseNode BinOp, VList LVals = null, VList RVals = null) {
+		CompilerValue CompileLogiBinOp(ParseNode LogiOp, VList LVals = null, VList RVals = null) {
 			//  TEST A C if not (R(A) <=> C) then PC++
 			//  TESTSET A B C if (R(B) <=> C) then R(A) := R(B) else PC++
+			// False is 'false' and 'nil' only
+			//
+			// binops of a same level are compressed by parser
 
-			ParseNode Left = BinOp.Children[0];
-			ParseNode Op = BinOp.Children[1];
-			ParseNode Right = BinOp.Children[2];
+			List<int> JumpNexts = new List<int>();
+			List<int> JumpEnds = new List<int>();
+
+			CompilerValue FinalV = null;
+
+			for(int Loop = 0; Loop < LogiOp.Children.Count; Loop += 2) {
+
+				foreach(int JI in JumpNexts) {
+					CurrFunc.Instructions[JI].B = (CurrFunc.Instructions.Count - JI);
+				}
+				JumpNexts.Clear();
+
+				ParseNode Child = LogiOp.Children[Loop];
+				ParseNode NextOp = null;
+
+				if(LogiOp.Children.Count < Loop+1)
+					NextOp = LogiOp.Children[Loop + 1];
+
+				CompilerValue LVal = CompileExp(Child)[0];
+				CompilerValue LReg = GetAsRegister(LVal);
+				FinalV = LReg;
+
+				if(NextOp != null) {
+					if(NextOp.Token.IsKeyword("and")) {
+						CurrFunc.Instructions.Add(Instruction.OP.TEST, LReg.Index, 0, 0);
+						JumpEnds.Add(CurrFunc.Instructions.Count);
+						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+					} else if(NextOp.Token.IsKeyword("or")) {
+						;
+						CurrFunc.Instructions.Add(Instruction.OP.TEST, LReg.Index, 0, 1);
+						JumpEnds.Add(CurrFunc.Instructions.Count);
+						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+					}
+				}
+
+			}
+			foreach(int JI in JumpEnds) {
+				CurrFunc.Instructions[JI].B = (CurrFunc.Instructions.Count - JI);
+			}
+			JumpEnds.Clear();
+
+			//////
+
+			ParseNode Left = LogiOp.Children[0];
+			ParseNode Op = LogiOp.Children[1];
+			ParseNode Right = LogiOp.Children[2];
 
 
 			VList LVs = CompileExp(Left);
