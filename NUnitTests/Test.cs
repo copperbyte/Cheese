@@ -196,9 +196,10 @@ namespace NUnitTests
 			string Code = @"
 				x = 2 + 3 * 4 + 5;
                 y = 2 + 3 ^ 2 * 3 + 4;
-                print(x, y); ";
+                z = -4^2;
+                print(x, y, z); ";
 
-			string Expected = "19\t33\r\n";
+			string Expected = "19\t33\t-16\r\n";
 
 			ConsoleCompareTest(Code, Expected);
 		}
