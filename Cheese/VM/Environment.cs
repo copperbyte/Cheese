@@ -100,25 +100,187 @@ namespace Cheese.Machine
 	internal static class MathLib {
 
 		internal static void Abs(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
-
 			LuaValue Param = Stack[0];
 			LuaValue Result = LuaNil.Nil;
-
 			if(Param is LuaInteger) {
 				Result = new LuaInteger(Math.Abs( (Param as LuaInteger).Integer));
 			} else if(Param is LuaNumber) {
 				Result = new LuaNumber(Math.Abs( (Param as LuaNumber).Number) );
 			}
-
 			Stack[-1] = Result;
 			return;
 		}
 
+		internal static void Acos(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			LuaValue Result = LuaNil.Nil;
+			if(Param is LuaInteger) {
+				double Value = (double)(Param as LuaInteger).Integer;
+				Result = new LuaNumber(Math.Acos(Value));
+			} else if(Param is LuaNumber) {
+				Result = new LuaNumber(Math.Acos((Param as LuaNumber).Number));
+			}
+			Stack[-1] = Result;
+			return;
+		}
+
+		internal static void Asin(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			LuaValue Result = LuaNil.Nil;
+			if(Param is LuaInteger) {
+				double Value = (double)(Param as LuaInteger).Integer;
+				Result = new LuaNumber(Math.Asin(Value));
+			} else if(Param is LuaNumber) {
+				Result = new LuaNumber(Math.Asin((Param as LuaNumber).Number));
+			}
+			Stack[-1] = Result;
+			return;
+		}
+
+		internal static void Atan(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			LuaValue Result = LuaNil.Nil;
+			if(Param is LuaInteger) {
+				double Value = (double)(Param as LuaInteger).Integer;
+				Result = new LuaNumber(Math.Atan(Value));
+			} else if(Param is LuaNumber) {
+				Result = new LuaNumber(Math.Atan((Param as LuaNumber).Number));
+			}
+			Stack[-1] = Result;
+			return;
+		}
+
+		internal static void Atan2(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue YV = Stack[0], XV = Stack[1];
+
+			double YD = 0.0, XD = 0.0;
+			if(YV is LuaInteger)
+				YD = (double)(YV as LuaInteger).Integer;
+			else if(YV is LuaNumber)
+				YD = (YV as LuaNumber).Number;
+			else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+
+			if(XV is LuaInteger)
+				XD = (double)(XV as LuaInteger).Integer;
+			else if(XV is LuaNumber)
+				XD = (XV as LuaNumber).Number;
+			else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+
+			Stack[-1] = new LuaNumber(Math.Atan2(YD, XD));
+			return;
+		}
+
+		internal static void Ceiling(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Ceiling(VD));
+			return;
+		}
+
+		internal static void Cos(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Cos(VD));
+			return;
+		}
+
+		internal static void Cosh(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Cosh(VD));
+			return;
+		}
+
+		internal static void Deg(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber( VD * (180.0 / Math.PI) );
+			return;
+		}
+
+		internal static void Exp(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Exp(VD));
+			return;
+		}
+
+		internal static void Floor(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Floor(VD));
+			return;
+		}
 
 		internal static void LoadInto(LuaEnvironment Env, LuaTable Dest) {
 			LuaTable LMath = new LuaTable();
 
 			LMath[new LuaString("abs")] = new LuaSysDelegate(MathLib.Abs);
+			LMath[new LuaString("acos")] = new LuaSysDelegate(MathLib.Acos);
+			LMath[new LuaString("asin")] = new LuaSysDelegate(MathLib.Asin);
+			LMath[new LuaString("atan")] = new LuaSysDelegate(MathLib.Atan);
+			LMath[new LuaString("atan2")] = new LuaSysDelegate(MathLib.Atan2);
+			LMath[new LuaString("ceil")] = new LuaSysDelegate(MathLib.Ceiling);
+			LMath[new LuaString("cos")] = new LuaSysDelegate(MathLib.Cos);
+			LMath[new LuaString("cosh")] = new LuaSysDelegate(MathLib.Cosh);
+			LMath[new LuaString("deg")] = new LuaSysDelegate(MathLib.Deg);
+			LMath[new LuaString("exp")] = new LuaSysDelegate(MathLib.Exp);
+			LMath[new LuaString("floor")] = new LuaSysDelegate(MathLib.Floor);
+
 
 			Dest[new LuaString("math")] = LMath;
 		}
