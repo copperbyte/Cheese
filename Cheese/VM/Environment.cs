@@ -266,6 +266,216 @@ namespace Cheese.Machine
 			return;
 		}
 
+		internal static void Log(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Log(VD));
+			return;
+		}
+
+		internal static void Log10(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Log10(VD));
+			return;
+		}
+
+		internal static void Max(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue AV = Stack[0], BV = Stack[1];
+
+			if(AV is LuaInteger && BV is LuaInteger) {
+				Stack[-1] = new LuaInteger(Math.Max((AV as LuaInteger).Integer,
+				                                    (BV as LuaInteger).Integer));
+				return;
+			}
+
+			double AD = 0.0, BD = 0.0;
+			if(AV is LuaInteger)
+				AD = (double)(AV as LuaInteger).Integer;
+			else if(AV is LuaNumber)
+				AD = (AV as LuaNumber).Number;
+			else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+
+			if(BV is LuaInteger)
+				BD = (double)(BV as LuaInteger).Integer;
+			else if(BV is LuaNumber)
+				BD = (BV as LuaNumber).Number;
+			else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+
+			Stack[-1] = new LuaNumber(Math.Max(AD, BD));
+			return;
+		}
+
+		internal static void Min(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue AV = Stack[0], BV = Stack[1];
+
+			if(AV is LuaInteger && BV is LuaInteger) {
+				Stack[-1] = new LuaInteger(Math.Min((AV as LuaInteger).Integer,
+				                                    (BV as LuaInteger).Integer));
+				return;
+			}
+
+			double AD = 0.0, BD = 0.0;
+			if(AV is LuaInteger)
+				AD = (double)(AV as LuaInteger).Integer;
+			else if(AV is LuaNumber)
+				AD = (AV as LuaNumber).Number;
+			else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+
+			if(BV is LuaInteger)
+				BD = (double)(BV as LuaInteger).Integer;
+			else if(BV is LuaNumber)
+				BD = (BV as LuaNumber).Number;
+			else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+
+			Stack[-1] = new LuaNumber(Math.Min(AD, BD));
+			return;
+		}
+
+		internal static void Pow(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue AV = Stack[0], BV = Stack[1];
+
+			double AD = 0.0, BD = 0.0;
+			if(AV is LuaInteger)
+				AD = (double)(AV as LuaInteger).Integer;
+			else if(AV is LuaNumber)
+				AD = (AV as LuaNumber).Number;
+			else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+
+			if(BV is LuaInteger)
+				BD = (double)(BV as LuaInteger).Integer;
+			else if(BV is LuaNumber)
+				BD = (BV as LuaNumber).Number;
+			else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+
+			Stack[-1] = new LuaNumber(Math.Pow(AD, BD));
+			return;
+		}
+
+		internal static void Rad(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber( VD * (Math.PI / 180.0) );
+			return;
+		}
+
+		internal static void Sin(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Sin(VD));
+			return;
+		}
+
+		internal static void Sinh(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Sinh(VD));
+			return;
+		}
+
+		internal static void Sqrt(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Sqrt(VD));
+			return;
+		}
+
+		internal static void Tan(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Tan(VD));
+			return;
+		}
+
+		internal static void Tanh(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = new LuaNumber(Math.Tanh(VD));
+			return;
+		}
+
 		internal static void LoadInto(LuaEnvironment Env, LuaTable Dest) {
 			LuaTable LMath = new LuaTable();
 
@@ -280,7 +490,25 @@ namespace Cheese.Machine
 			LMath[new LuaString("deg")] = new LuaSysDelegate(MathLib.Deg);
 			LMath[new LuaString("exp")] = new LuaSysDelegate(MathLib.Exp);
 			LMath[new LuaString("floor")] = new LuaSysDelegate(MathLib.Floor);
-
+			// fmod
+			// frexp
+			// huge
+			// ldexp
+			LMath[new LuaString("log")] = new LuaSysDelegate(MathLib.Log);
+			LMath[new LuaString("log10")] = new LuaSysDelegate(MathLib.Log10);
+			LMath[new LuaString("max")] = new LuaSysDelegate(MathLib.Max);
+			LMath[new LuaString("min")] = new LuaSysDelegate(MathLib.Min);
+			// modf
+			LMath[new LuaString("pi")] = new LuaNumber(Math.PI);
+			LMath[new LuaString("pow")] = new LuaSysDelegate(MathLib.Pow);
+			LMath[new LuaString("rad")] = new LuaSysDelegate(MathLib.Rad);
+			// random
+			// randomseed
+			LMath[new LuaString("sin")] = new LuaSysDelegate(MathLib.Sin);
+			LMath[new LuaString("sinh")] = new LuaSysDelegate(MathLib.Sinh);
+			LMath[new LuaString("sqrt")] = new LuaSysDelegate(MathLib.Sqrt);
+			LMath[new LuaString("tan")] = new LuaSysDelegate(MathLib.Tan);
+			LMath[new LuaString("tanh")] = new LuaSysDelegate(MathLib.Tanh);
 
 			Dest[new LuaString("math")] = LMath;
 		}
