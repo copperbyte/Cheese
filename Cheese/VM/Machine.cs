@@ -101,7 +101,8 @@ namespace Cheese.Machine
 					NewTop += RetCount;
 				CurrFrame = Frames[Frames.Count - 1];
 				Frames.RemoveAt(Frames.Count - 1);
-				CurrFrame.Top = NewTop;
+				if(RetCount > 0)
+					CurrFrame.Top = NewTop;
 			}
 			//Console.WriteLine(" => {0} ", CurrFrame.Base);
 			// Not actually freeing space in Registers
@@ -624,7 +625,7 @@ namespace Cheese.Machine
 
 						// Stack is prepped for 2 Args already;
 
-						Stack.PushFrame(ProgramCounter, null, CB, CurrOp.B);
+						Stack.PushFrame(ProgramCounter, null, CB, 3);
 
 						FuncDelegate.Call(Environment, Stack, 3, CurrOp.C+2);
 
