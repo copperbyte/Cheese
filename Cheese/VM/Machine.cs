@@ -217,34 +217,40 @@ namespace Cheese.Machine
 
 				switch(CurrOp.Code) {
 
-				case Instruction.OP.MOVE:
+				case Instruction.OP.MOVE: {
 					Stack[CurrOp.A] = Stack[CurrOp.B];
-					break;
+					continue;
+				}
 
-				case Instruction.OP.LOADK: 
+				case Instruction.OP.LOADK: {
 					Stack[CurrOp.A] = Stack.Func.ConstantTable[CurrOp.B].Value;
-					break;
+					continue;
+				}
 				
-				case Instruction.OP.LOADBOOL:
+				case Instruction.OP.LOADBOOL: {
 					Stack[CurrOp.A] = (CurrOp.B != 0 ? LuaBool.True : LuaBool.False);
 					if(CurrOp.C != 0)
 						ProgramCounter++;
-					break;
+					continue;
+				}
 
-				case Instruction.OP.LOADNIL:
+				case Instruction.OP.LOADNIL: {
 					for(int i = CurrOp.A; i <= CurrOp.B; i++) {
 						Stack[i] = LuaNil.Nil;
 					}
-					break;
+					continue;
+				}
 
 				// GETGLOBAL  // R(A) := Gbl[Kst(Bx)]
-				case Instruction.OP.GETGLOBAL:
+				case Instruction.OP.GETGLOBAL: {
 					Stack[CurrOp.A] = Globals[Stack.Func.ConstantTable[CurrOp.B].Value];
-					break;                  
+					continue;                  
+				}
 				// SETGLOBAL  // Gbl[Kst(Bx)] := R(A)
-				case Instruction.OP.SETGLOBAL:
+				case Instruction.OP.SETGLOBAL: {
 					Globals[Stack.Func.ConstantTable[CurrOp.B].Value] = Stack[CurrOp.A];
-					break;
+					continue;
+				}
 
 				// NEWTABLE
 				case Instruction.OP.NEWTABLE: {
