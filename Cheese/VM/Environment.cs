@@ -6,24 +6,9 @@ using System.IO;
 namespace Cheese.Machine
 {
 
-	internal static class SystemFunctions {
+	internal static class BaseLib {
 
-		internal static LuaValue print(LuaEnvironment Env, LuaTable Arguments) {
-
-			bool First = true;
-			foreach(LuaValue Curr in Arguments.EnumerableArray) {
-				if(!First)
-					Env.SystemOut.Write("\t");
-				Env.SystemOut.Write(Curr.ToString());
-				First = false;
-			}
-
-			Env.SystemOut.WriteLine();
-
-			return LuaNil.Nil;
-		}
-
-		internal static void printS(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+		internal static void print(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
 
 			bool First = true;
 			for(int Loop = 0; Loop < (ArgC-1); Loop++) {
@@ -42,52 +27,7 @@ namespace Cheese.Machine
 			return;
 		}
 
-
-		internal static LuaValue next(LuaEnvironment Env, LuaTable Arguments) {
-			LuaTable TableArg = Arguments[1] as LuaTable;
-			LuaValue KeyArg = LuaNil.Nil;
-
-			if(Arguments.Length == 2) {
-				KeyArg = Arguments[2];
-			}
-
-			var Enumerable = TableArg.EnumerableTable;
-			if(Enumerable == null)
-				return LuaNil.Nil;
-
-			var Enumerator = Enumerable.GetEnumerator();
-			bool More = Enumerator.MoveNext();
-		
-			if(KeyArg != LuaNil.Nil) {
-				while(Enumerator.Current.Key != KeyArg) {
-					More = Enumerator.MoveNext();
-					if(!More)
-						break;
-				}
-				More = Enumerator.MoveNext(); // advance
-			}
-
-			if(!More) // end of table, no match
-				return LuaNil.Nil;
-			else { // on Match
-				LuaTable Result = new LuaTable();
-				Result.Add(Enumerator.Current.Key);
-				Result.Add(Enumerator.Current.Value);
-				return Result;
-			}
-		}
-
-
-		internal static LuaValue pairs(LuaEnvironment Env, LuaTable Arguments) {
-			LuaTable Result = new LuaTable();
-			Result.Add(Env.Globals[new LuaString("next")]);
-			Result.Add(Arguments[1]);
-			Result.Add(LuaNil.Nil);
-			return Result;
-		}
-
-
-		internal static void nextS(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+		internal static void next(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
 			LuaTable TableArg = Stack[0] as LuaTable;
 			LuaValue KeyArg = LuaNil.Nil;
 
@@ -121,39 +61,13 @@ namespace Cheese.Machine
 			}
 		}
 
-
-		internal static void pairsS(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+		internal static void pairs(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
 			Stack[-1] = Env.Globals[new LuaString("next")];
 			Stack[0] = Stack[0];
 			Stack[1] = LuaNil.Nil;
 		}
 
-
-		internal static LuaValue ipairsaux(LuaEnvironment Env, LuaTable Arguments) {
-			LuaTable TableArg = Arguments[1] as LuaTable;
-			LuaInteger KeyArg = Arguments[2] as LuaInteger;
-
-			KeyArg = new LuaInteger(KeyArg.Integer+1);
-
-			if(TableArg.Length >= KeyArg.Integer) {
-				LuaTable Result = new LuaTable();
-				Result.Add(KeyArg);
-				Result.Add(TableArg[KeyArg.Integer]);
-				return Result;
-			} else {
-				return LuaNil.Nil;
-			}
-		}
-
-		internal static LuaValue ipairs(LuaEnvironment Env, LuaTable Arguments) {
-			LuaTable Result = new LuaTable(3);
-			Result[1] = Env.Globals[new LuaString("ipairsaux")];
-			Result[2] = Arguments[1];
-			Result[3] = new LuaInteger(0);
-			return Result;
-		}
-
-		internal static void ipairsauxS(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+		internal static void ipairsaux(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
 			LuaTable TableArg = Stack[0] as LuaTable;
 			LuaInteger KeyArg = Stack[1] as LuaInteger;
 
@@ -167,13 +81,49 @@ namespace Cheese.Machine
 			}
 		}
 
-		internal static void ipairsS(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+		internal static void ipairs(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
 			Stack[-1] = Env.Globals[new LuaString("ipairsaux")];
 			Stack[0] = Stack[0];
 			Stack[1] = new LuaInteger(0);
 		}
 
+
+		internal static void LoadInto(LuaEnvironment Env, LuaTable Dest) {
+			Dest[new LuaString("print")] = new LuaSysDelegate(BaseLib.print);
+			Dest[new LuaString("next")] = new LuaSysDelegate(BaseLib.next);
+			Dest[new LuaString("pairs")] = new LuaSysDelegate(BaseLib.pairs);
+			Dest[new LuaString("ipairsaux")] = new LuaSysDelegate(BaseLib.ipairsaux);
+			Dest[new LuaString("ipairs")] = new LuaSysDelegate(BaseLib.ipairs);
+		}
 	}
+
+	internal static class MathLib {
+
+		internal static void Abs(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+
+			LuaValue Param = Stack[0];
+			LuaValue Result = LuaNil.Nil;
+
+			if(Param is LuaInteger) {
+				Result = new LuaInteger(Math.Abs( (Param as LuaInteger).Integer));
+			} else if(Param is LuaNumber) {
+				Result = new LuaNumber(Math.Abs( (Param as LuaNumber).Number) );
+			}
+
+			Stack[-1] = Result;
+			return;
+		}
+
+
+		internal static void LoadInto(LuaEnvironment Env, LuaTable Dest) {
+			LuaTable LMath = new LuaTable();
+
+			LMath[new LuaString("abs")] = new LuaSysDelegate(MathLib.Abs);
+
+			Dest[new LuaString("math")] = LMath;
+		}
+	}
+
 
 	public class LuaEnvironment
 	{
@@ -238,20 +188,8 @@ namespace Cheese.Machine
 
 		////
 		private void InitSystemFunctions() {
-
-			//Globals[new LuaString("print")] = new LuaDelegate(SystemFunctions.print);
-			Globals[new LuaString("print")] = new LuaSysDelegate(SystemFunctions.printS);
-
-			//Globals[new LuaString("next")] = new LuaDelegate(SystemFunctions.next);
-			//Globals[new LuaString("pairs")] = new LuaDelegate(SystemFunctions.pairs);
-			Globals[new LuaString("next")] = new LuaSysDelegate(SystemFunctions.nextS);
-			Globals[new LuaString("pairs")] = new LuaSysDelegate(SystemFunctions.pairsS);
-
-
-			//Globals[new LuaString("ipairsaux")] = new LuaDelegate(SystemFunctions.ipairsaux);
-			//Globals[new LuaString("ipairs")] = new LuaDelegate(SystemFunctions.ipairs);
-			Globals[new LuaString("ipairsaux")] = new LuaSysDelegate(SystemFunctions.ipairsauxS);
-			Globals[new LuaString("ipairs")] = new LuaSysDelegate(SystemFunctions.ipairsS);
+			BaseLib.LoadInto(this, Globals);
+			MathLib.LoadInto(this, Globals);
 		}
 	}
 }
