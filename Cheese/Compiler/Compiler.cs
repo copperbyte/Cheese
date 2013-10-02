@@ -70,6 +70,54 @@ namespace Cheese
 	}
 
 
+	class CompilerFunction {
+
+		internal class ConstEntry {
+			internal int Index;
+			internal double NumberVal;
+			internal long IntegerVal;
+			internal string StringVal;
+		}
+
+		internal class LocalEntry {
+			internal int Index;
+			internal string Name;
+			internal int StartPC, EndPC;
+		}
+
+		internal int NumParams;
+		internal bool IsVarArg;
+		internal int MaxStackSize;
+
+		internal SortedSet<int> UsedRegs;  
+
+		internal List<ConstEntry> ConstantTable;
+		internal List< List<LocalEntry> > LocalScopes;
+		internal List<LocalEntry> FullLocalTable;
+
+		internal List<CompilerFunction> SubFunctions;
+
+		internal List<Instruction> Instructions;
+
+
+		public CompilerFunction() {
+			NumParams = 0;
+			IsVarArg = false;
+			MaxStackSize = 0;
+
+			UsedRegs = new SortedSet<int>();
+
+			ConstantTable = new List<ConstEntry>();
+			LocalScopes = new List< List<LocalEntry> >();
+			FullLocalTable = new List<LocalEntry>();
+			SubFunctions = new List<CompilerFunction>();
+
+			Instructions = new List<Instruction>();
+		}
+
+	}
+
+
 	// Essentially a function, but for the 'root' of the function tree, 
 	public class Chunk {
 		internal Function RootFunc;
@@ -82,17 +130,17 @@ namespace Cheese
 	class Compiler
 	{ 
 
-		Machine.Function CurrFunc;
-		//List<Machine.Function> Functions;
-		Stack<Machine.Function> FunctionStack;
+		//Machine.Function CurrFunc;
+		//Stack<Machine.Function> FunctionStack;
+		CompilerFunction CurrFunc;
+		Stack<CompilerFunction> FunctionStack;
 
 		List<CompilerValue> Globals;
 
 
 		public Compiler()
 		{
-			//Functions = new List<Function>();
-			FunctionStack = new Stack<Function>();
+			FunctionStack = new Stack<CompilerFunction>();
 			Globals = new List<CompilerValue>();
 		}
 
@@ -103,11 +151,13 @@ namespace Cheese
 				return null;
 
 			Chunk Result = new Chunk();
-			Result.RootFunc = new Function();
+			//Result.RootFunc = new Function();
+
+			CompilerFunction RootFunc = new CompilerFunction();
 
 			// Curr and Stack.Top should be synonymous
-			FunctionStack.Push(Result.RootFunc);
-			CurrFunc = Result.RootFunc;
+			FunctionStack.Push(RootFunc);
+			CurrFunc = RootFunc;
 
 			PushLocalScope();
 
@@ -117,7 +167,7 @@ namespace Cheese
 			}
 
 			// all functions, even chunk root, end with a return
-			Result.RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
+			RootFunc.Instructions.Add(Instruction.OP.RETURN, 0, 1);
 			PopLocalScope();
 
 			//Functions.Insert(0, Result.RootFunc);
@@ -128,13 +178,58 @@ namespace Cheese
 			//	Console.WriteLine("Function:  ");
 			//	Func.Print();
 			//}
-			Result.RootFunc.Print();
 
 
+			// Process CompilerFunctions into MachineFunctions
+			Result.RootFunc = CompilerFuncToMachineFunc(RootFunc);
+
+			Result.RootFunc.Print();		
 			return Result;
 		}
 
 
+		internal Machine.Function CompilerFuncToMachineFunc(CompilerFunction CompFunc) {
+			Machine.Function MachFunc = new Machine.Function();
+
+			MachFunc.NumParams = CompFunc.NumParams;
+			MachFunc.IsVarArg = CompFunc.IsVarArg;
+			MachFunc.MaxStackSize = CompFunc.MaxStackSize;
+
+			foreach(CompilerFunction.ConstEntry Const in CompFunc.ConstantTable) {
+				LuaValue ConstValue = null;
+
+				if(Const.StringVal != null) {
+					ConstValue = new LuaString(Const.StringVal);
+				} else if(Const.NumberVal != default(double)) {
+					ConstValue = new LuaNumber(Const.NumberVal);
+				} else if(Const.IntegerVal != default(long)) {
+					ConstValue = new LuaInteger(Const.IntegerVal);
+				} else {
+					ConstValue = new LuaInteger(0);
+				}
+		
+				MachFunc.ConstantTable.Add(ConstValue);
+			}
+
+			foreach(CompilerFunction.LocalEntry Local in CompFunc.FullLocalTable) {
+				Machine.LocalEntry MachLocal = new Machine.LocalEntry();
+
+				MachLocal.Index = Local.Index;
+				MachLocal.Name = Local.Name;
+				MachLocal.StartPC = Local.StartPC;
+				MachLocal.EndPC = Local.EndPC;
+
+				MachFunc.FullLocalTable.Add(MachLocal);
+			}
+
+			MachFunc.Instructions = new List<Instruction>(CompFunc.Instructions);
+
+			foreach(CompilerFunction CompSub in CompFunc.SubFunctions) {
+				MachFunc.SubFunctions.Add(CompilerFuncToMachineFunc(CompSub));
+			}
+
+			return MachFunc;
+		}
 
 
 		int GetFreeRegister() {
@@ -237,54 +332,50 @@ namespace Cheese
 		// Constants and Globals
 
 		CompilerValue GetConstIndex(string ConstValue) {
-			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
+			foreach(CompilerFunction.ConstEntry Entry in CurrFunc.ConstantTable) {
 				if(Entry.StringVal != null && Entry.StringVal == ConstValue) {
 					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
 					//return Entry.Value;
 				}
 			}
-			ConstEntry NewEntry = new ConstEntry();
+			CompilerFunction.ConstEntry NewEntry = new CompilerFunction.ConstEntry();
 			NewEntry.Index = CurrFunc.ConstantTable.Count;
 			//NewEntry.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.StringVal = ConstValue;
-			NewEntry.Value = new LuaString(ConstValue);
 			CurrFunc.ConstantTable.Add(NewEntry);
 			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
-			//return NewEntry.Value;
 		}
 
 		CompilerValue GetConstIndex(double ConstValue) {
-			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
+			foreach(CompilerFunction.ConstEntry Entry in CurrFunc.ConstantTable) {
 				if(Entry.StringVal == null && Entry.NumberVal == ConstValue) {
 					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
 					//return Entry.Value;
 				}
 			}
-			ConstEntry NewEntry = new ConstEntry();
+			CompilerFunction.ConstEntry NewEntry = new CompilerFunction.ConstEntry();
 			NewEntry.Index = CurrFunc.ConstantTable.Count;
 			//NewEntry.Value.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.NumberVal = ConstValue;
-			NewEntry.Value = new LuaNumber(ConstValue);
+			//NewEntry.Value = new LuaNumber(ConstValue);
 			CurrFunc.ConstantTable.Add(NewEntry);
 			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
-			//return NewEntry.Value;
 		}
 
 		CompilerValue GetConstIndex(long ConstValue) {
-			foreach(ConstEntry Entry in CurrFunc.ConstantTable) {
+			foreach(CompilerFunction.ConstEntry Entry in CurrFunc.ConstantTable) {
 				if(Entry.StringVal == null && Entry.IntegerVal == ConstValue) {
 					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
 					//return Entry.Value;
 				}
 			}
-			ConstEntry NewEntry = new ConstEntry();
+			CompilerFunction.ConstEntry NewEntry = new CompilerFunction.ConstEntry();
 			NewEntry.Index = CurrFunc.ConstantTable.Count;
 			//NewEntry.Value.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.IntegerVal = ConstValue;
-			NewEntry.Value = new LuaInteger(ConstValue);
+			//NewEntry.Value = new LuaInteger(ConstValue);
 			CurrFunc.ConstantTable.Add(NewEntry);
 			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
-			//return NewEntry.Value;
 		}
 
 		bool CheckGlobal(string Name) {
@@ -315,10 +406,9 @@ namespace Cheese
 
 		// Local Tools 
 		CompilerValue GetLocalIndex(string Name, bool Create=true) {
-
 			for(int RI = CurrFunc.LocalScopes.Count-1; RI >= 0; RI--) {
-				List<LocalEntry> CurrScope = CurrFunc.LocalScopes[RI];
-				foreach(LocalEntry Entry in CurrScope) {
+				List<CompilerFunction.LocalEntry> CurrScope = CurrFunc.LocalScopes[RI];
+				foreach(CompilerFunction.LocalEntry Entry in CurrScope) {
 					if(Entry.Name != null && Entry.Name == Name) {
 						return new CompilerValue(Entry.Index, CompilerValue.ELoc.LOCAL);
 						//return Entry.Value;
@@ -344,18 +434,18 @@ namespace Cheese
 		CompilerValue CreateLocal(string Name) {
 			//int FreeReg = GetFreeRegister();
 			int LocalCount = 0;
-			foreach(List<LocalEntry> Scope in CurrFunc.LocalScopes) {
-				foreach(LocalEntry Entry in Scope) {
+			foreach(List<CompilerFunction.LocalEntry> Scope in CurrFunc.LocalScopes) {
+				foreach(CompilerFunction.LocalEntry Entry in Scope) {
 					LocalCount++;
 				}
 			}
-			LocalEntry NewEntry = new LocalEntry();
+			CompilerFunction.LocalEntry NewEntry = new CompilerFunction.LocalEntry();
 			//NewEntry.Value.Index = CurrFunc.LocalTable.Count;
 			NewEntry.Index = LocalCount;
 			//NewEntry.Value.Loc = CompilerValue.ELoc.LOCAL;
 			NewEntry.Name = Name;
 			NewEntry.StartPC = CurrFunc.Instructions.Count - 1;
-			List<LocalEntry> TopScope = CurrFunc.LocalScopes[CurrFunc.LocalScopes.Count - 1];
+			List<CompilerFunction.LocalEntry> TopScope = CurrFunc.LocalScopes[CurrFunc.LocalScopes.Count - 1];
 			TopScope.Add(NewEntry);
 			//CurrFunc.LocalTable.Add(NewEntry);
 			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.LOCAL);
@@ -368,16 +458,16 @@ namespace Cheese
 		}
 
 		void PushLocalScope() {
-			List<LocalEntry> NewScope = new List<LocalEntry>();
+			List<CompilerFunction.LocalEntry> NewScope = new List<CompilerFunction.LocalEntry>();
 			CurrFunc.LocalScopes.Add(NewScope);
 		}
 
 		void PopLocalScope() {
 			if(CurrFunc.LocalScopes.Count > 0) {
-				List<LocalEntry> OutScope = null;
+				List<CompilerFunction.LocalEntry> OutScope = null;
 				OutScope = CurrFunc.LocalScopes[CurrFunc.LocalScopes.Count - 1];
 				CurrFunc.LocalScopes.RemoveAt(CurrFunc.LocalScopes.Count - 1);
-				foreach(LocalEntry Entry in OutScope) {
+				foreach(CompilerFunction.LocalEntry Entry in OutScope) {
 					Entry.EndPC = CurrFunc.Instructions.Count - 1;
 					FreeRegister(Entry.Index);
 				}
@@ -664,8 +754,8 @@ namespace Cheese
 					CompileReturnStmt(Statement);
 
 				CurrFunc.UsedRegs.Clear();
-				foreach(List<LocalEntry> Scope in CurrFunc.LocalScopes) {
-					foreach(LocalEntry Entry in Scope) {
+				foreach(List<CompilerFunction.LocalEntry> Scope in CurrFunc.LocalScopes) {
+					foreach(CompilerFunction.LocalEntry Entry in Scope) {
 						CurrFunc.UsedRegs.Add(Entry.Index);
 					}
 				}
@@ -1758,7 +1848,7 @@ namespace Cheese
 
 
 			// push function..
-			Function NewFunc = new Function();
+			CompilerFunction NewFunc = new CompilerFunction();
 			FunctionStack.Push(NewFunc);
 			CurrFunc = NewFunc;
 
@@ -1788,7 +1878,7 @@ namespace Cheese
 
 			PopLocalScope();
 
-			Function CompletedFunction = CurrFunc;
+			CompilerFunction CompletedFunction = CurrFunc;
 
 			//Functions.Add(NewFunc);
 			FunctionStack.Pop();  // we are done

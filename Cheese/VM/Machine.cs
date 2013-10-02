@@ -223,7 +223,7 @@ namespace Cheese.Machine
 				}
 
 				case Instruction.OP.LOADK: {
-					Stack[CurrOp.A] = Stack.Func.ConstantTable[CurrOp.B].Value;
+					Stack[CurrOp.A] = Stack.Func.ConstantTable[CurrOp.B];
 					continue;
 				}
 				
@@ -243,12 +243,12 @@ namespace Cheese.Machine
 
 				// GETGLOBAL  // R(A) := Gbl[Kst(Bx)]
 				case Instruction.OP.GETGLOBAL: {
-					Stack[CurrOp.A] = Globals[Stack.Func.ConstantTable[CurrOp.B].Value];
+					Stack[CurrOp.A] = Globals[Stack.Func.ConstantTable[CurrOp.B]];
 					continue;                  
 				}
 				// SETGLOBAL  // Gbl[Kst(Bx)] := R(A)
 				case Instruction.OP.SETGLOBAL: {
-					Globals[Stack.Func.ConstantTable[CurrOp.B].Value] = Stack[CurrOp.A];
+					Globals[Stack.Func.ConstantTable[CurrOp.B]] = Stack[CurrOp.A];
 					continue;
 				}
 
@@ -876,7 +876,7 @@ namespace Cheese.Machine
 
 		private LuaValue GetRK(int Index, bool RK) {
 			if(RK)
-				return Stack.Func.ConstantTable[Index].Value;
+				return Stack.Func.ConstantTable[Index];
 			else 
 				return Stack[Index];
 		}

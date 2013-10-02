@@ -6,15 +6,6 @@ using Cheese;
 
 namespace Cheese.Machine
 {
-
-	class ConstEntry {
-		internal int Index;
-		internal double NumberVal;
-		internal long IntegerVal;
-		internal string StringVal;
-		internal LuaValue Value;
-	}
-
 	class LocalEntry {
 		internal int Index;
 		internal string Name;
@@ -33,11 +24,9 @@ namespace Cheese.Machine
 		internal bool IsVarArg;
 		internal int MaxStackSize;
 
-		internal SortedSet<int> UsedRegs;  // Move back to Compiler???
-		internal List<ConstEntry> ConstantTable;
+		internal List<LuaValue> ConstantTable;
 
-		//internal List<LocalEntry> LocalTable;
-		internal List< List<LocalEntry> > LocalScopes;
+		//internal List< List<LocalEntry> > LocalScopes;
 		internal List<LocalEntry> FullLocalTable;
 		internal List<Function> SubFunctions;
 
@@ -48,10 +37,8 @@ namespace Cheese.Machine
 			IsVarArg = false;
 			MaxStackSize = 0;
 
-			UsedRegs = new SortedSet<int>();
-			ConstantTable = new List<ConstEntry>();
-			//LocalTable = new List<LocalEntry>();
-			LocalScopes = new List< List<LocalEntry> >();
+			ConstantTable = new List<LuaValue>();
+			//LocalScopes = new List< List<LocalEntry> >();
 			FullLocalTable = new List<LocalEntry>();
 			SubFunctions = new List<Function>();
 
@@ -77,8 +64,10 @@ namespace Cheese.Machine
 		}
 
 		internal void PrintConstants() {
-			foreach(ConstEntry Const in ConstantTable) {
-				Console.WriteLine("CV  {0:00} := {1}", Const.Index, Const.Value.ToString());
+			int Index = 0;
+			foreach(LuaValue Const in ConstantTable) {
+				Console.WriteLine("CV  {0:00} := {1}", Index, Const.ToString());
+				Index++;
 			}
 		}
 
