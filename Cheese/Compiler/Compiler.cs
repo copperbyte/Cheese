@@ -232,6 +232,8 @@ namespace Cheese
 		}
 
 
+		#region Registers
+
 		int GetFreeRegister() {
 			int Result = 0;
 			while(CurrFunc.UsedRegs.Contains(Result)) {
@@ -328,8 +330,35 @@ namespace Cheese
 			}
 		}
 
+		CompilerValue GetTReg() {
+			return new CompilerValue(GetFreeRegister(), CompilerValue.ELoc.REGISTER);
+		}
+		CompilerValue GetUnclaimedReg() {
+			return new CompilerValue(GetUnclaimedRegister(), CompilerValue.ELoc.REGISTER);
+		}
 
-		// Constants and Globals
+		CompilerValue GetLReg(VList LVals = null, VList RVals = null) {
+			CompilerValue Result = null;
+			if(LVals != null && RVals != null && LVals.Count > RVals.Count) {
+				if (LVals[RVals.Count].IsRegister && !LVals[RVals.Count].IsTable) {
+					Result = LVals[RVals.Count];
+				}
+			}
+			return Result;
+		}
+
+
+
+		CompilerValue GetLRegorTReg(VList LVals = null, VList RVals = null) {
+			CompilerValue Result = null;
+			Result = GetLReg(LVals, RVals);
+			if(Result == null)
+				Result = GetTReg();
+			return Result;
+		}
+		#endregion Registers
+
+		#region Constants 
 
 		CompilerValue GetConstIndex(string ConstValue) {
 			foreach(CompilerFunction.ConstEntry Entry in CurrFunc.ConstantTable) {
@@ -378,6 +407,10 @@ namespace Cheese
 			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.CONSTANT);
 		}
 
+		#endregion Constants
+
+		#region Globals
+
 		bool CheckGlobal(string Name) {
 			foreach(CompilerValue Iter in Globals) {
 				if (Iter.Index < CurrFunc.ConstantTable.Count &&
@@ -403,8 +436,9 @@ namespace Cheese
 			return GlobalV;
 		}
 
+		#endregion Globals
 
-		// Local Tools 
+		#region Locals
 		CompilerValue GetLocalIndex(string Name, bool Create=true) {
 			for(int RI = CurrFunc.LocalScopes.Count-1; RI >= 0; RI--) {
 				List<CompilerFunction.LocalEntry> CurrScope = CurrFunc.LocalScopes[RI];
@@ -475,35 +509,9 @@ namespace Cheese
 			}
 		}
 
+		#endregion Locals
 
-		// Register Shuffles
-
-		CompilerValue GetLReg(VList LVals = null, VList RVals = null) {
-			CompilerValue Result = null;
-			if(LVals != null && RVals != null && LVals.Count > RVals.Count) {
-				if (LVals[RVals.Count].IsRegister && !LVals[RVals.Count].IsTable) {
-					Result = LVals[RVals.Count];
-				}
-			}
-			return Result;
-		}
-
-		CompilerValue GetTReg() {
-			return new CompilerValue(GetFreeRegister(), CompilerValue.ELoc.REGISTER);
-		}
-		CompilerValue GetUnclaimedReg() {
-			return new CompilerValue(GetUnclaimedRegister(), CompilerValue.ELoc.REGISTER);
-		}
-
-		CompilerValue GetLRegorTReg(VList LVals = null, VList RVals = null) {
-			CompilerValue Result = null;
-			Result = GetLReg(LVals, RVals);
-			if(Result == null)
-				Result = GetTReg();
-			return Result;
-		}
-
-
+		#region Assignments
 		// make table resolution recursive? 
 		// end point, table must be Register, Key must be REG/CONST
 		// Takes Value, returns Value with directly usable Table parts?
@@ -724,6 +732,7 @@ namespace Cheese
 			return TReg;
 		}
 
+		#endregion
 
 		// Compiling
 
@@ -764,7 +773,7 @@ namespace Cheese
 
 		}
 
-		// STATEMENTS
+		#region STATEMENTS
 
 		void CompileAssignmentStmt(ParseNode Assignment) {
 			if(Assignment.Children.Count != 3)
@@ -980,10 +989,27 @@ namespace Cheese
 				Console.WriteLine("START  : {0} ", CurrFunc.Instructions.Count);
 				PushLocalScope();
 
+				int PreExpOp = CurrFunc.Instructions.Count-1;
+
 				VList ExpVs = null;
 				if(Exp != null) 
 					ExpVs = CompileExp(Exp);
 
+				// CompilerFunction holds a Stack of Branch Objects
+				// BranchObject stores some ID, and a T and F location
+				//  (which can't be finalized until later)
+				// JMPs need to refer to a non-finalized Branch object,
+				//  ID and T/F. (Maybe JMP.C?)
+				// Then in post, resolve all unfinalized JMPs
+				/*
+				int PostExpOp = CurrFunc.Instructions.Count - 1;
+				for(int I = PreExpOp + 1; I <= PostExpOp; I++) {
+					if (CurrFunc.Instructions[I].Code == Instruction.OP.JMP &&
+						CurrFunc.Instructions[I].B == 0) {
+						JumpNextOps.Add(I);
+					}
+				}
+				*/
 
 				if(ExpVs != null) {
 					CompilerValue ExpV = ExpVs[0];
@@ -1027,6 +1053,7 @@ namespace Cheese
 					Console.WriteLine("JNEXT IS JUMP TO END {0} - {1} = {2}",
 					                  EndOpPos, JumpNextOps[i], (EndOpPos - JumpNextOps[i])-1);
 				} else {
+					// Next and Start dont sync when Next has ANDs...
 					int SkipJumpDist = (JumpStartOps[i+1] - JumpNextOps[i])-1;
 					CurrFunc.Instructions[JumpNextOps[i]].B = SkipJumpDist;
 					Console.WriteLine("JNEXT  {0} - {1} = {2}",
@@ -1299,9 +1326,10 @@ namespace Cheese
 			CurrFunc.Instructions[SkipOp].B = (-JumpBack) - 2;
 		}
 
+		#endregion STATEMENTS
 
+		#region AST PARTS
 
-		// AST PARTS
 		VList CompileLeftVarList(ParseNode VarList) {
 			// Can Var-list be an R-Value? Maybe. Maybe it would be wrapped in an ExpList if it was?
 			// Anyway, this is meant to be an L-Value. 
@@ -2139,7 +2167,7 @@ namespace Cheese
 				ParseNode Child = LogiOp.Children[Loop];
 				ParseNode NextOp = null;
 
-				if(LogiOp.Children.Count < Loop+1)
+				if(LogiOp.Children.Count > Loop+1)
 					NextOp = LogiOp.Children[Loop + 1];
 
 				CompilerValue LVal = CompileExp(Child)[0];
@@ -2160,11 +2188,11 @@ namespace Cheese
 				}
 
 			}
-			foreach(int JI in JumpEnds) {
-				CurrFunc.Instructions[JI].B = (CurrFunc.Instructions.Count - JI);
-			}
-			JumpEnds.Clear();
-
+			//foreach(int JI in JumpEnds) {
+			//	CurrFunc.Instructions[JI].B = (CurrFunc.Instructions.Count - JI);
+			//}
+			//JumpEnds.Clear();
+			return FinalV;
 			//////
 
 			ParseNode Left = LogiOp.Children[0];
@@ -2264,6 +2292,8 @@ namespace Cheese
 
 			return Result;
 		}
+
+		#endregion AST PARTS
 
 	}
 }
