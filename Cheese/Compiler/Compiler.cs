@@ -1063,13 +1063,8 @@ namespace Cheese
 		void CompileIfStmt(ParseNode IfStatement) {
 			// 'if' exp 'then' block ('elseif' exp 'then' block)* ('else' block)? 'end' |
 
-			List<int> JumpStartOps = new List<int>();
-			List<int> JumpNextOps = new List<int>();
-			List<int> JumpEndOps = new List<int>();
-
 			int ChildIndex = 0;
-			int EndOpPos = 0;
-
+		
 			PushBranch();
 
 			// Generator Ops
@@ -1084,11 +1079,9 @@ namespace Cheese
 					Exp = null;
 					Block = IfStatement.Children[ChildIndex + 1];
 				} else if(IfStatement.Children[ChildIndex].Token.IsKeyword("end")) {
-					EndOpPos = CurrFunc.Instructions.Count;
 					break;
 				}
 
-				JumpStartOps.Add(CurrFunc.Instructions.Count);
 				Console.WriteLine("START  : {0} ", CurrFunc.Instructions.Count);
 				PushLocalScope();
 				PushBranch();
@@ -1118,7 +1111,6 @@ namespace Cheese
 					}
 				}
 				SetBranchDest(true);
-				JumpNextOps.Add(CurrFunc.Instructions.Count-1);
 				Console.WriteLine("NEXT   : {0} ", CurrFunc.Instructions.Count-1);				
 
 				CompileBlock(Block);
@@ -1126,11 +1118,10 @@ namespace Cheese
 				// if there are else's, add a jump here
 				if(ChildIndex + 4 + 3 /*else block end*/  <= IfStatement.Children.Count) {
 					CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
-					JumpEndOps.Add(CurrFunc.Instructions.Count-1);
 					int ParentLevel = 1;
 					SetBranchSrcJmp(false, ParentLevel);
 				} else {
-					EndOpPos = CurrFunc.Instructions.Count;
+					; /// headed towards END
 				}
 				Console.WriteLine("JEND   : {0} ", CurrFunc.Instructions.Count-1);
 
@@ -1142,29 +1133,6 @@ namespace Cheese
 			}
 			SetBranchDest(false);
 			PopBranch();
-
-			// Fix the JMPs
-			/*
-			for(int i = 0; i < JumpNextOps.Count; i++) {
-				if(i == JumpNextOps.Count - 1) {
-					CurrFunc.Instructions[JumpNextOps[i]].B = (EndOpPos - JumpNextOps[i])-1;
-					Console.WriteLine("JNEXT IS JUMP TO END {0} - {1} = {2}",
-					                  EndOpPos, JumpNextOps[i], (EndOpPos - JumpNextOps[i])-1);
-				} else {
-					// Next and Start dont sync when Next has ANDs...
-					int SkipJumpDist = (JumpStartOps[i+1] - JumpNextOps[i])-1;
-					CurrFunc.Instructions[JumpNextOps[i]].B = SkipJumpDist;
-					Console.WriteLine("JNEXT  {0} - {1} = {2}",
-					                  JumpStartOps[i+1], JumpNextOps[i], SkipJumpDist);
-				}
-			}
-			for(int i = 0; i < JumpEndOps.Count; i++) {
-				int SkipJumpDist = (EndOpPos - JumpEndOps[i])-1;
-				CurrFunc.Instructions[JumpEndOps[i]].B = SkipJumpDist;
-				Console.WriteLine("JEND  {0} - {1} = {2}",
-				                  EndOpPos, JumpEndOps[i], SkipJumpDist);
-			}
-			*/
 
 		}
 
