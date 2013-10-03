@@ -95,6 +95,7 @@ namespace Cheese
 
 		internal void AddSrcJmp(int Key) {
 			int JmpPoint = Func.Instructions.Count - 1;
+			Console.WriteLine("Branch Src: {0} has {1}", Key, JmpPoint);
 			SrcJmps[Key].Add(JmpPoint);
 		}
 		internal void AddSrcJmp(bool Key) {
@@ -102,6 +103,7 @@ namespace Cheese
 		}
 
 		internal void SetDest(int Key) {
+			Console.WriteLine("Branch Dest: {0} is {1}", Key, Func.Instructions.Count);
 			DestOps[Key] = Func.Instructions.Count;
 		}
 		internal void SetDest(bool Key) {
@@ -116,8 +118,10 @@ namespace Cheese
 				for(int SI = 0; SI < SrcJmps[DI].Count; SI++) {
 					int SrcJmp = SrcJmps[DI][SI];
 
-					int Dist = (SrcJmp - DestOp);
+					int Dist = (DestOp - SrcJmp)-1;
 					Func.Instructions[SrcJmp].B = Dist;
+					Console.WriteLine("Branch Finalize: {0} to {1} is D: {2} ",
+					                  SrcJmp, DestOp, Dist);
 				}
 			}
 		}
@@ -585,16 +589,25 @@ namespace Cheese
 				BranchScope OutBranch = null;			
 				OutBranch = CurrFunc.BranchStack[CurrFunc.BranchStack.Count - 1];
 				CurrFunc.BranchStack.RemoveAt(CurrFunc.BranchStack.Count - 1);
+				OutBranch.FinalizeJmps();
 				CurrFunc.ClosedBranches.Add(OutBranch);
 			}
 		}
 
 		void SetBranchSrcJmp(bool Dir, int Level=0) {
-			CurrFunc.BranchStack[CurrFunc.BranchStack.Count - (1 + Level)].AddSrcJmp(Dir);
+			int Offset = 1 + Level;
+			int Index = CurrFunc.BranchStack.Count - Offset;
+			if(Index >= 0) {
+				CurrFunc.BranchStack[Index].AddSrcJmp(Dir);
+			}
 		}
 
 		void SetBranchDest(bool Dir, int Level=0) {
-			CurrFunc.BranchStack[CurrFunc.BranchStack.Count - (1 + Level)].SetDest(Dir);
+			int Offset = 1 + Level;
+			int Index = CurrFunc.BranchStack.Count - Offset;
+			if(Index >= 0) { 
+				CurrFunc.BranchStack[Index].SetDest(Dir);
+			}
 		}
 
 		#endregion Branches
@@ -608,7 +621,7 @@ namespace Cheese
 			if(!Original.IsTable)
 				return null;
 
-			Console.WriteLine("R:  {0} ", Original);
+			//Console.WriteLine("R:  {0} ", Original);
 
 			CompilerValue UseVal = null;
 
@@ -665,7 +678,7 @@ namespace Cheese
 		// Move Whatever to Register Function
 		// Mostly for moving whatever RVal to a Temp Reg		
 		void EmitToRegisterOp(CompilerValue LVal, CompilerValue RVal) {
-			Console.WriteLine("E2:  {0}  <=  {1}", LVal, RVal);
+			//Console.WriteLine("E2:  {0}  <=  {1}", LVal, RVal);
 			if(!LVal.IsRegister)
 				return;
 
@@ -691,7 +704,7 @@ namespace Cheese
 
 		// Mostly for moving a Temp Reg to a whatever LVal	
 		void EmitFromRegisterOp(CompilerValue LVal, CompilerValue RVal) {
-			Console.WriteLine("E3:  {0}  <=  {1}", LVal, RVal);
+			//Console.WriteLine("E3:  {0}  <=  {1}", LVal, RVal);
 			if(!RVal.IsRegister)
 				return;
 
@@ -719,7 +732,7 @@ namespace Cheese
 			if(LVal == null || RVal == null)
 				return;
 
-			Console.WriteLine("E1:  {0}  <=  {1}", LVal, RVal);
+			//Console.WriteLine("E1:  {0}  <=  {1}", LVal, RVal);
 
 
 			if(LVal.Loc == RVal.Loc && LVal.Index == RVal.Index)
@@ -730,7 +743,7 @@ namespace Cheese
 
 
 			if(LVal.IsTable) {
-				Console.WriteLine("T1:  {0}  <=  {1}", LVal, RVal);
+				//Console.WriteLine("T1:  {0}  <=  {1}", LVal, RVal);
 				// make table resolution recursive? 
 				// end point, table must be Register, Key must be REG/CONST
 				// Takes Value, returns Value with directly usable Table parts?
@@ -763,7 +776,7 @@ namespace Cheese
 					UseKey = TReg;
 				}
 
-				Console.WriteLine("T2:  {0}  <=  {1}", UseLVal, RVal);
+				//Console.WriteLine("T2:  {0}  <=  {1}", UseLVal, RVal);
 
 				// figure out the R (is an RK) , generate a SETTABLE ;
 				if(RVal.IsTable) {
@@ -1057,6 +1070,8 @@ namespace Cheese
 			int ChildIndex = 0;
 			int EndOpPos = 0;
 
+			PushBranch();
+
 			// Generator Ops
 			while(ChildIndex < IfStatement.Children.Count) {
 				ParseNode Exp=null, Block=null;
@@ -1076,8 +1091,9 @@ namespace Cheese
 				JumpStartOps.Add(CurrFunc.Instructions.Count);
 				Console.WriteLine("START  : {0} ", CurrFunc.Instructions.Count);
 				PushLocalScope();
+				PushBranch();
 
-
+				// SetBranchSrcJmp(true) is for inside the CompileExp
 				VList ExpVs = null;
 				if(Exp != null) 
 					ExpVs = CompileExp(Exp);
@@ -1098,27 +1114,37 @@ namespace Cheese
 						FreeRegister(ExpV);
 						CurrFunc.Instructions.Add(Instruction.OP.TEST, ExpV.Index, -1, 0);
 						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+						SetBranchSrcJmp(false);
 					}
 				}
+				SetBranchDest(true);
 				JumpNextOps.Add(CurrFunc.Instructions.Count-1);
 				Console.WriteLine("NEXT   : {0} ", CurrFunc.Instructions.Count-1);				
 
 				CompileBlock(Block);
 
 				// if there are else's, add a jump here
-				if(ChildIndex + 4 + 3 /*else block end*/  < IfStatement.Children.Count) {
+				if(ChildIndex + 4 + 3 /*else block end*/  <= IfStatement.Children.Count) {
 					CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
 					JumpEndOps.Add(CurrFunc.Instructions.Count-1);
+					int ParentLevel = 1;
+					SetBranchSrcJmp(false, ParentLevel);
 				} else {
 					EndOpPos = CurrFunc.Instructions.Count;
 				}
 				Console.WriteLine("JEND   : {0} ", CurrFunc.Instructions.Count-1);
+
+				SetBranchDest(false);
+				PopBranch();
 				PopLocalScope();
 
 				ChildIndex += 4;
 			}
+			SetBranchDest(false);
+			PopBranch();
 
 			// Fix the JMPs
+			/*
 			for(int i = 0; i < JumpNextOps.Count; i++) {
 				if(i == JumpNextOps.Count - 1) {
 					CurrFunc.Instructions[JumpNextOps[i]].B = (EndOpPos - JumpNextOps[i])-1;
@@ -1138,6 +1164,7 @@ namespace Cheese
 				Console.WriteLine("JEND  {0} - {1} = {2}",
 				                  EndOpPos, JumpEndOps[i], SkipJumpDist);
 			}
+			*/
 
 		}
 
@@ -2248,14 +2275,15 @@ namespace Cheese
 
 				if(NextOp != null) {
 					if(NextOp.Token.IsKeyword("and")) {
-						CurrFunc.Instructions.Add(Instruction.OP.TEST, LReg.Index, 0, 0);
+						CurrFunc.Instructions.Add(Instruction.OP.TEST, LReg.Index, -2, 0);
 						JumpEnds.Add(CurrFunc.Instructions.Count);
 						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+						SetBranchSrcJmp(false);
 					} else if(NextOp.Token.IsKeyword("or")) {
-						;
-						CurrFunc.Instructions.Add(Instruction.OP.TEST, LReg.Index, 0, 1);
+						CurrFunc.Instructions.Add(Instruction.OP.TEST, LReg.Index, -2, 1);
 						JumpEnds.Add(CurrFunc.Instructions.Count);
 						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+						SetBranchSrcJmp(true);
 					}
 				}
 
@@ -2265,37 +2293,7 @@ namespace Cheese
 			//}
 			//JumpEnds.Clear();
 			return FinalV;
-			//////
 
-			ParseNode Left = LogiOp.Children[0];
-			ParseNode Op = LogiOp.Children[1];
-			ParseNode Right = LogiOp.Children[2];
-
-
-			VList LVs = CompileExp(Left);
-			VList RVs = CompileExp(Right);
-
-
-			if(Op.Token.IsOperator("and"))
-				;//	InstOp = Instruction.OP.LT;
-			else if(Op.Token.IsOperator("or"))
-				;//	InstOp = Instruction.OP.LE;
-			
-
-			CompilerValue LV = LVs[0], RV = RVs[0];
-
-			if(!LV.IsRegister)
-				LV = GetAsRegister(LV);
-			if(!RV.IsRegister)
-				RV = GetAsRegister(RV);
-
-			//int CompValue = 0;
-
-
-			FreeRegister(LV);
-			FreeRegister(RV);
-
-			return null;//DestVal;
 		}
 
 		CompilerValue CompileConcBinOp(ParseNode ConcatOp, VList LVals = null, VList RVals = null) {
