@@ -70,6 +70,60 @@ namespace Cheese
 	}
 
 
+	class BranchScope {
+	
+		internal CompilerFunction Func;
+		internal List<int> DestOps; // Finalized Op Index
+
+		internal List< List<int> > SrcJmps; // Jmps to the Dests
+
+		internal BranchScope(CompilerFunction Func) {
+			this.Func = Func;
+			DestOps = new List<int>();
+			SrcJmps = new List< List<int> >();
+
+			AllocKey();
+			AllocKey();
+		}
+
+		internal int AllocKey() {
+			int Key = DestOps.Count;
+			DestOps.Add(-1);
+			SrcJmps.Add(new List<int>());
+			return Key;
+		}
+
+		internal void AddSrcJmp(int Key) {
+			int JmpPoint = Func.Instructions.Count - 1;
+			SrcJmps[Key].Add(JmpPoint);
+		}
+		internal void AddSrcJmp(bool Key) {
+			AddSrcJmp(Key?1:0);
+		}
+
+		internal void SetDest(int Key) {
+			DestOps[Key] = Func.Instructions.Count;
+		}
+		internal void SetDest(bool Key) {
+			SetDest(Key?1:0);
+		}
+
+
+		internal void FinalizeJmps() {
+			// Branches fixup 
+			for(int DI = 0; DI < DestOps.Count; DI++) {
+				int DestOp = DestOps[DI];
+				for(int SI = 0; SI < SrcJmps[DI].Count; SI++) {
+					int SrcJmp = SrcJmps[DI][SI];
+
+					int Dist = (SrcJmp - DestOp);
+					Func.Instructions[SrcJmp].B = Dist;
+				}
+			}
+		}
+	}
+
+
 	class CompilerFunction {
 
 		internal class ConstEntry {
@@ -95,6 +149,10 @@ namespace Cheese
 		internal List< List<LocalEntry> > LocalScopes;
 		internal List<LocalEntry> FullLocalTable;
 
+
+		internal List<BranchScope> BranchStack; // Open Branches
+		internal List<BranchScope> ClosedBranches; // Closed Branches
+
 		internal List<CompilerFunction> SubFunctions;
 
 		internal List<Instruction> Instructions;
@@ -108,8 +166,13 @@ namespace Cheese
 			UsedRegs = new SortedSet<int>();
 
 			ConstantTable = new List<ConstEntry>();
+
 			LocalScopes = new List< List<LocalEntry> >();
 			FullLocalTable = new List<LocalEntry>();
+
+			BranchStack = new List<BranchScope>();
+			ClosedBranches = new List<BranchScope>();
+
 			SubFunctions = new List<CompilerFunction>();
 
 			Instructions = new List<Instruction>();
@@ -130,13 +193,11 @@ namespace Cheese
 	class Compiler
 	{ 
 
-		//Machine.Function CurrFunc;
-		//Stack<Machine.Function> FunctionStack;
+
 		CompilerFunction CurrFunc;
 		Stack<CompilerFunction> FunctionStack;
 
 		List<CompilerValue> Globals;
-
 
 		public Compiler()
 		{
@@ -221,6 +282,8 @@ namespace Cheese
 
 				MachFunc.FullLocalTable.Add(MachLocal);
 			}
+
+
 
 			MachFunc.Instructions = new List<Instruction>(CompFunc.Instructions);
 
@@ -510,6 +573,31 @@ namespace Cheese
 		}
 
 		#endregion Locals
+
+		#region Branches
+		void PushBranch() {
+			BranchScope NewBranch = new BranchScope(CurrFunc);
+			CurrFunc.BranchStack.Add(NewBranch);
+		}
+
+		void PopBranch() {
+			if(CurrFunc.BranchStack.Count > 0) {
+				BranchScope OutBranch = null;			
+				OutBranch = CurrFunc.BranchStack[CurrFunc.BranchStack.Count - 1];
+				CurrFunc.BranchStack.RemoveAt(CurrFunc.BranchStack.Count - 1);
+				CurrFunc.ClosedBranches.Add(OutBranch);
+			}
+		}
+
+		void SetBranchSrcJmp(bool Dir, int Level=0) {
+			CurrFunc.BranchStack[CurrFunc.BranchStack.Count - (1 + Level)].AddSrcJmp(Dir);
+		}
+
+		void SetBranchDest(bool Dir, int Level=0) {
+			CurrFunc.BranchStack[CurrFunc.BranchStack.Count - (1 + Level)].SetDest(Dir);
+		}
+
+		#endregion Branches
 
 		#region Assignments
 		// make table resolution recursive? 
@@ -989,27 +1077,11 @@ namespace Cheese
 				Console.WriteLine("START  : {0} ", CurrFunc.Instructions.Count);
 				PushLocalScope();
 
-				int PreExpOp = CurrFunc.Instructions.Count-1;
 
 				VList ExpVs = null;
 				if(Exp != null) 
 					ExpVs = CompileExp(Exp);
 
-				// CompilerFunction holds a Stack of Branch Objects
-				// BranchObject stores some ID, and a T and F location
-				//  (which can't be finalized until later)
-				// JMPs need to refer to a non-finalized Branch object,
-				//  ID and T/F. (Maybe JMP.C?)
-				// Then in post, resolve all unfinalized JMPs
-				/*
-				int PostExpOp = CurrFunc.Instructions.Count - 1;
-				for(int I = PreExpOp + 1; I <= PostExpOp; I++) {
-					if (CurrFunc.Instructions[I].Code == Instruction.OP.JMP &&
-						CurrFunc.Instructions[I].B == 0) {
-						JumpNextOps.Add(I);
-					}
-				}
-				*/
 
 				if(ExpVs != null) {
 					CompilerValue ExpV = ExpVs[0];
