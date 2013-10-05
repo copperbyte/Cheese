@@ -1046,13 +1046,21 @@ namespace Cheese
 				}
 			}
 
-			VList RetVs = CompileExpList(ExpList);
+			VList LVals = new VList();
+			LVals.Add(GetTReg());
+
+			VList RetVs = CompileExpList(ExpList, LVals);
 
 			int A = 0, B = 1;
 			if(RetVs != null) {
 				if(RetVs.Count > 0) {
 					A = RetVs[0].Index;
-					B = RetVs.Count + 1;
+					//B = RetVs.Count + 1;
+					B = A;
+					foreach(CompilerValue RV in RetVs) {
+						B = Math.Max(B, RV.Index);
+					}
+					B = (B - A) + 2;
 				}
 			}
 
@@ -2218,50 +2226,93 @@ namespace Cheese
 			// False is 'false' and 'nil' only
 			//
 			// binops of a same level are compressed by parser
+			Console.WriteLine("Logi LRVal Count:  {0}   {1}", LVals==null?-1:LVals.Count, RVals==null?-1:RVals.Count);
 
-			List<int> JumpNexts = new List<int>();
-			List<int> JumpEnds = new List<int>();
+			CompilerValue DestReg = GetLReg(LVals, RVals);
 
 			CompilerValue FinalV = null;
 
-			for(int Loop = 0; Loop < LogiOp.Children.Count; Loop += 2) {
+			// Logic only
+			if(DestReg == null) {
 
-				foreach(int JI in JumpNexts) {
-					CurrFunc.Instructions[JI].B = (CurrFunc.Instructions.Count - JI);
+				for(int Loop = 0; Loop < LogiOp.Children.Count; Loop += 2) {
+
+					ParseNode Child = LogiOp.Children[Loop];
+					ParseNode NextOp = null;
+
+					if(LogiOp.Children.Count > Loop+1)
+						NextOp = LogiOp.Children[Loop + 1];
+
+					CompilerValue LogiVal = CompileExp(Child, LVals, RVals)[0];
+					CompilerValue LogiReg = GetAsRegister(LogiVal);
+					FinalV = LogiReg;
+
+					if(NextOp != null) {
+						if(NextOp.Token.IsKeyword("and")) {
+							CurrFunc.Instructions.Add(Instruction.OP.TEST, LogiReg.Index, -2, 0);
+							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+							SetBranchSrcJmp(false);
+						} else if(NextOp.Token.IsKeyword("or")) {
+							CurrFunc.Instructions.Add(Instruction.OP.TEST, LogiReg.Index, -2, 1);
+							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+							SetBranchSrcJmp(true);
+						}
+					} 
 				}
-				JumpNexts.Clear();
+				return FinalV;
+			} 
+			// Assignments
+			else {
+				PushBranch();
+				RVals.Add(DestReg);
 
-				ParseNode Child = LogiOp.Children[Loop];
-				ParseNode NextOp = null;
+				for(int Loop = 0; Loop < LogiOp.Children.Count; Loop += 2) {
 
-				if(LogiOp.Children.Count > Loop+1)
-					NextOp = LogiOp.Children[Loop + 1];
+					ParseNode Child = LogiOp.Children[Loop];
+					ParseNode NextOp = null;
 
-				CompilerValue LVal = CompileExp(Child)[0];
-				CompilerValue LReg = GetAsRegister(LVal);
-				FinalV = LReg;
+					if(LogiOp.Children.Count > Loop+1)
+						NextOp = LogiOp.Children[Loop + 1];
 
-				if(NextOp != null) {
-					if(NextOp.Token.IsKeyword("and")) {
-						CurrFunc.Instructions.Add(Instruction.OP.TEST, LReg.Index, -2, 0);
-						JumpEnds.Add(CurrFunc.Instructions.Count);
-						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
-						SetBranchSrcJmp(false);
-					} else if(NextOp.Token.IsKeyword("or")) {
-						CurrFunc.Instructions.Add(Instruction.OP.TEST, LReg.Index, -2, 1);
-						JumpEnds.Add(CurrFunc.Instructions.Count);
-						CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
-						SetBranchSrcJmp(true);
+					CompilerValue LogiVal = null;
+					{
+						PushBranch();
+						LogiVal = CompileExp(Child, LVals, RVals)[0];
+						SetBranchDest(true);
+
 					}
+					CompilerValue LogiReg = GetAsRegister(LogiVal);
+					FinalV = LogiReg;
+
+					if(NextOp != null) {
+						if(NextOp.Token.IsKeyword("and")) {
+							CurrFunc.Instructions.Add(Instruction.OP.TESTSET, DestReg.Index, LogiReg.Index, 0);
+							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+							SetBranchSrcJmp(false,1);
+						} else if(NextOp.Token.IsKeyword("or")) {
+							CurrFunc.Instructions.Add(Instruction.OP.TESTSET, DestReg.Index, LogiReg.Index, 1);
+							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
+							SetBranchSrcJmp(true,1);
+						}					
+					} else if(NextOp == null && DestReg != null) {
+						// MOV DestReg  LogiReg		
+						EmitAssignOp(DestReg, LogiReg);
+						FinalV = DestReg;
+					}
+
+					SetBranchDest(false);
+					PopBranch();
+
 				}
 
-			}
-			//foreach(int JI in JumpEnds) {
-			//	CurrFunc.Instructions[JI].B = (CurrFunc.Instructions.Count - JI);
-			//}
-			//JumpEnds.Clear();
-			return FinalV;
+				SetBranchDest(true);
+				SetBranchDest(false);
+				PopBranch();
 
+				return FinalV;
+			}
+
+			return null;
 		}
 
 		CompilerValue CompileConcBinOp(ParseNode ConcatOp, VList LVals = null, VList RVals = null) {
