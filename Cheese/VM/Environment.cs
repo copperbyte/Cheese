@@ -36,29 +36,60 @@ namespace Cheese.Machine
 			}
 
 			var Enumerable = TableArg.EnumerableTable;
-			if(Enumerable == null) {
-				Stack[-1] = LuaNil.Nil;
-			}
 
-			var Enumerator = Enumerable.GetEnumerator();
-			bool More = Enumerator.MoveNext();
+			bool TableKeyFound = false;
+			if(Enumerable != null) {
+				var Enumerator = Enumerable.GetEnumerator();
+				bool More = Enumerator.MoveNext();
 
-			if(KeyArg != LuaNil.Nil) {
-				while(Enumerator.Current.Key != KeyArg) {
-					More = Enumerator.MoveNext();
-					if(!More)
-						break;
+				if(KeyArg != LuaNil.Nil) {
+					while(Enumerator.Current.Key != KeyArg) {
+						More = Enumerator.MoveNext();
+						if(!More)
+							break;
+					}
+					if(Enumerator.Current.Key == KeyArg)
+						TableKeyFound = true;
+					More = Enumerator.MoveNext(); // advance
 				}
-				More = Enumerator.MoveNext(); // advance
+
+				if(More) { // on Match
+					Stack[-1] = Enumerator.Current.Key;
+					Stack[0] = Enumerator.Current.Value;
+					return;
+				}
 			}
 
-			if(!More) { // end of table, no match
-				//return LuaNil.Nil;
-				Stack[-1] = LuaNil.Nil;
-			} else { // on Match
-				Stack[-1] = Enumerator.Current.Key;
-				Stack[0] = Enumerator.Current.Value;
+			if(KeyArg == LuaNil.Nil || KeyArg is LuaInteger) {
+				var ListEnumerable = TableArg.EnumerableArray;
+
+				if(ListEnumerable != null) {
+					var ListEnumerator = ListEnumerable.GetEnumerator();
+					bool More = ListEnumerator.MoveNext();					
+
+					LuaInteger ListIndex = new LuaInteger(1);
+
+					if(KeyArg != LuaNil.Nil) {
+						while(ListIndex.Integer < (KeyArg as LuaInteger).Integer) {
+							More = ListEnumerator.MoveNext();
+							ListIndex.Integer = ListIndex.Integer + 1;
+							if(!More)
+								break;
+						}
+						More = ListEnumerator.MoveNext(); // advance
+						ListIndex.Integer = ListIndex.Integer + 1;
+					}
+
+					if(More) { // on Match
+						Stack[-1] = ListIndex;
+						Stack[0] = ListEnumerator.Current;
+						return;
+					} 
+				} 
 			}
+
+			Stack[-1] = LuaNil.Nil;
+			return;
 		}
 
 		internal static void pairs(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
