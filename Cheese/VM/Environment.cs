@@ -608,6 +608,12 @@ namespace Cheese.Machine
 
 
 		////
+		public LuaValue GetGlobalValue(string Name) {
+			LuaString LuaKey = new LuaString(Name);
+			return Globals[LuaKey];
+		}
+
+		////
 		private void InitSystemFunctions() {
 			BaseLib.LoadInto(this, Globals);
 			MathLib.LoadInto(this, Globals);
