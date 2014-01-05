@@ -590,15 +590,15 @@ namespace Cheese.Machine
 
 		public void Execute(TextReader Input) {
 			Chunk Compiled = Compile(Input);
-			ExecuteChunk(Compiled);
+			Execute(Compiled);
 		}
 		public void Execute(string Code) {
 			Chunk Compiled = Compile(Code);
-			ExecuteChunk(Compiled);
+			Execute(Compiled);
 		}
 
 
-		public void ExecuteChunk(Chunk Chunk) {
+		public void Execute(Chunk Chunk) {
 
 			if(Machine == null)
 				Machine = new Machine(this);		
@@ -606,6 +606,12 @@ namespace Cheese.Machine
 			Machine.ExecuteChunk(Chunk);
 		}
 
+
+		////
+		public LuaTable ExecuteClosure(LuaClosure Closure, LuaTable Args) {
+
+			return Machine.ExecuteFunction(Closure.Function, Args);
+		}
 
 		////
 		public LuaValue GetGlobalValue(string Name) {

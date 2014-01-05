@@ -202,6 +202,30 @@ namespace Cheese.Machine
 			ProgramCounter = Stack.PopFrame(0);
 		}
 
+		internal LuaTable ExecuteFunction(Function Function, LuaTable Args, int CallDepth=1) {
+
+			Stack.PushFrame(ProgramCounter, Function, 0, Args.Count);
+			ProgramCounter = 0;
+
+			int ArgI = 0;
+			foreach(LuaValue Curr in Args.EnumerableArray) {
+				Stack[ArgI] = Curr;
+				ArgI++;
+			}
+
+			ExecuteMachine(CallDepth);
+
+			ProgramCounter = Stack.PopFrame(0);
+
+			LuaTable Ret = new LuaTable();
+
+			for(int RetI = 0; RetI < Stack.Top; RetI++) {
+				Ret.Add(Stack[RetI]);
+			}
+
+			return Ret;
+		}
+
 		private void ExecuteMachine(int CallDepth=1) {
 
 			while(true) {

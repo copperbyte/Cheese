@@ -270,6 +270,8 @@ namespace Cheese
 			this.Function = Func;
 		}
 
+		// Call? LuaEnvironment?  
+		// Env.Call(Closure, Args) or Closure.Call(Env, Args);
 	}
 
 
