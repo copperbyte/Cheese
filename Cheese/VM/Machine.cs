@@ -204,7 +204,7 @@ namespace Cheese.Machine
 
 		internal LuaTable ExecuteFunction(Function Function, LuaTable Args, int CallDepth=1) {
 
-			Stack.PushFrame(ProgramCounter, Function, 0, Args.Count);
+			Stack.PushFrame(ProgramCounter, Function, 0, Args.Length);
 			ProgramCounter = 0;
 
 			int ArgI = 0;
@@ -215,13 +215,15 @@ namespace Cheese.Machine
 
 			ExecuteMachine(CallDepth);
 
-			ProgramCounter = Stack.PopFrame(0);
+
 
 			LuaTable Ret = new LuaTable();
 
 			for(int RetI = 0; RetI < Stack.Top; RetI++) {
 				Ret.Add(Stack[RetI]);
 			}
+
+			ProgramCounter = Stack.PopFrame(0);	
 
 			return Ret;
 		}
