@@ -18,6 +18,7 @@ namespace Cheese.Machine
 			internal int PC;
 			internal int Base;
 			internal int Top;
+			internal int CallF;
 			internal Function Func;
 		}
 		Frame CurrFrame;
@@ -28,6 +29,7 @@ namespace Cheese.Machine
 			Frames = new List<Frame>();
 			CurrFrame.Base = 0;
 			CurrFrame.Top = 0;
+			CurrFrame.CallF = 0;
 		}
 
 		public LuaValue this[int i]
@@ -42,6 +44,7 @@ namespace Cheese.Machine
 			;// Storage.Clear();
 			CurrFrame.Base = 0;
 			CurrFrame.Top = 0;
+			CurrFrame.CallF = 0;
 			//Storage.Add(new int(0));
 			//FramePointer = 1;
 		}
@@ -79,30 +82,42 @@ namespace Cheese.Machine
 			if(Func != null)
 				Reserve(Func.MaxStackSize - ArgBase + 1);
 
+			Console.WriteLine("PushFrame F: {0},{1}", CurrFrame.Base, CurrFrame.Top);
+			Console.WriteLine("PushFrame A: {0},{1}", ArgBase, ArgCount);
+
 			CurrFrame.PC = PC;
+			CurrFrame.CallF = ArgBase;
 			Frames.Add(CurrFrame);
 
 			int NewBase = CurrFrame.Base + ArgBase + 1;
 			//Console.WriteLine("Stack.PushFrame  Base {0} => {1} ", CurrFrame.Base, NewBase);
 			CurrFrame.Base = NewBase; //CurrFrame.Top;
 			CurrFrame.Func = Func;
+			CurrFrame.CallF = 0;
 			CurrFrame.Top = NewBase + ArgCount;
+			Console.WriteLine("PushFrame N: {0},{1}", CurrFrame.Base, CurrFrame.Top);
 		}
 
 		public int PopFrame(int RetCount) {
 			//Console.Write("Stack.PopFrame  Base {0}", CurrFrame.Base);
 			if(Frames.Count == 0) {
+				Console.WriteLine("PopFrame NULL");
 				CurrFrame.Base = 0;
 				CurrFrame.Top = 0;
+				CurrFrame.CallF = 0;
 				CurrFrame.Func = null;
 			} else {
-				int NewTop = CurrFrame.Base;
+				Console.WriteLine("PopFrame  F: {0},{1}", CurrFrame.Base, CurrFrame.Top);
+				Console.WriteLine("PopFrame  A: {0}", RetCount);
+
+				int NewTop = CurrFrame.Base-1;
 				if(RetCount > 0)
 					NewTop += RetCount;
 				CurrFrame = Frames[Frames.Count - 1];
 				Frames.RemoveAt(Frames.Count - 1);
 				if(RetCount > 0)
 					CurrFrame.Top = NewTop;
+				Console.WriteLine("PopFrame  N: {0},{1}", CurrFrame.Base, CurrFrame.Top);
 			}
 			//Console.WriteLine(" => {0} ", CurrFrame.Base);
 			// Not actually freeing space in Registers
@@ -153,6 +168,11 @@ namespace Cheese.Machine
 			}
 		}
 
+		internal int CallFrom {
+			get {
+				return (CurrFrame.CallF);
+			}
+		}
 		internal int Top {
 			get {
 				return (CurrFrame.Top - CurrFrame.Base);
@@ -219,7 +239,7 @@ namespace Cheese.Machine
 
 			LuaTable Ret = new LuaTable();
 
-			for(int RetI = 0; RetI < Stack.Top; RetI++) {
+			for(int RetI = Stack.CallFrom; RetI < Stack.Top; RetI++) {
 				Ret.Add(Stack[RetI]);
 			}
 
