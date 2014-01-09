@@ -1104,6 +1104,7 @@ namespace Cheese
 					CompilerValue ExpV = ExpVs[0];
 					if(ExpV == null) {
 						; // do nothing
+						SetBranchSrcJmp(false);
 					} else {
 						// else, check ExpVs for true/false
 						if(!(ExpV.IsRegister && !ExpV.IsTable)) {
