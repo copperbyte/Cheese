@@ -259,6 +259,8 @@ namespace Cheese
 
 	}
 
+	// Special type that isn't Table to store Argument lists?
+	// Is that just List<LuaValue> ?
 
 	// LuaClosure , a Function and an UpVal storage wrapped
 	public class LuaClosure : LuaValue {
@@ -270,7 +272,7 @@ namespace Cheese
 			this.Function = Func;
 		}
 
-		// Call? LuaEnvironment?  
+		// Call? LuaEnvironment?  see LuaEnvironment
 		// Env.Call(Closure, Args) or Closure.Call(Env, Args);
 	}
 

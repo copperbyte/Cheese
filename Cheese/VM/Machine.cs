@@ -197,7 +197,7 @@ namespace Cheese.Machine
 		public Machine(LuaEnvironment Env) 
 		{
 			this.Environment = Env;
-			this.Globals = Env.Globals;
+			this.Globals = Env.m_Globals;
 			Stack = new VmStack();
 			ProgramCounter = 0;
 		}
@@ -239,8 +239,6 @@ namespace Cheese.Machine
 
 			ExecuteMachine(CallDepth);
 
-
-
 			LuaTable Ret = new LuaTable();
 
 			for(int RetI = Stack.CallFrom; RetI < Stack.Top; RetI++) {
@@ -249,6 +247,65 @@ namespace Cheese.Machine
 
 			ProgramCounter = Stack.PopFrame(0);	
 
+			return Ret;
+		}
+
+		internal LuaValue ExecuteFunction_Zero(Function Function, int CallDepth=1) {
+			Stack.PushFrame(ProgramCounter, Function, 0, 0);
+			ProgramCounter = 0;
+			ExecuteMachine(CallDepth);
+			LuaValue Ret = null;
+			if(Stack.Top > 1)
+				Ret = Stack[0];
+			ProgramCounter = Stack.PopFrame(0);	
+			return Ret;
+		}
+
+		internal LuaValue ExecuteFunction_One(Function Function, LuaValue Arg, int CallDepth=1) {
+			if(Arg == null) {
+				Stack.PushFrame(ProgramCounter, Function, 0, 0);
+			} else {
+				Stack.PushFrame(ProgramCounter, Function, 0, 1);
+				Stack[0] = Arg;
+			} 
+			ProgramCounter = 0;
+
+			ExecuteMachine(CallDepth);
+			LuaValue Ret = null;
+			if(Stack.Top > 1)
+				Ret = Stack[0];
+			ProgramCounter = Stack.PopFrame(0);	
+			return Ret;
+		}
+
+		internal LuaValue ExecuteFunction_Two(Function Function, LuaValue A1, LuaValue A2, int CallDepth=1) {
+			Stack.PushFrame(ProgramCounter, Function, 0, 2);
+			Stack[0] = A1;
+			Stack[1] = A2;
+		
+			ProgramCounter = 0;
+
+			ExecuteMachine(CallDepth);
+			LuaValue Ret = null;
+			if(Stack.Top > 1)
+				Ret = Stack[0];
+			ProgramCounter = Stack.PopFrame(0);	
+			return Ret;
+		}
+
+		internal LuaValue ExecuteFunction_Three(Function Function, LuaValue A1, LuaValue A2, LuaValue A3, int CallDepth=1) {
+			Stack.PushFrame(ProgramCounter, Function, 0, 3);
+			Stack[0] = A1;
+			Stack[1] = A2;
+			Stack[2] = A3;
+
+			ProgramCounter = 0;
+
+			ExecuteMachine(CallDepth);
+			LuaValue Ret = null;
+			if(Stack.Top > 1)
+				Ret = Stack[0];
+			ProgramCounter = Stack.PopFrame(0);	
 			return Ret;
 		}
 

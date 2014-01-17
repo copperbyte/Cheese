@@ -93,7 +93,7 @@ namespace Cheese.Machine
 		}
 
 		internal static void pairs(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
-			Stack[-1] = Env.Globals[new LuaString("next")];
+			Stack[-1] = Env.m_Globals[new LuaString("next")];
 			Stack[0] = Stack[0];
 			Stack[1] = LuaNil.Nil;
 		}
@@ -113,7 +113,7 @@ namespace Cheese.Machine
 		}
 
 		internal static void ipairs(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
-			Stack[-1] = Env.Globals[new LuaString("ipairsaux")];
+			Stack[-1] = Env.m_Globals[new LuaString("ipairsaux")];
 			Stack[0] = Stack[0];
 			Stack[1] = new LuaInteger(0);
 		}
@@ -554,14 +554,19 @@ namespace Cheese.Machine
 
 		// Globals?
 		// Has to be a LuaTable so it can be used in Lua code by "_G"
-		internal LuaTable Globals;
+		internal LuaTable m_Globals;
+
+		public LuaTable Globals {
+			get { return m_Globals; }
+
+		}
 
 		// Upvals?
 
 
 		public LuaEnvironment()
 		{
-			Globals = new LuaTable();
+			m_Globals = new LuaTable();
 
 			SystemOut = Console.Out;
 
@@ -613,16 +618,32 @@ namespace Cheese.Machine
 			return Machine.ExecuteFunction(Closure.Function, Args);
 		}
 
+		public LuaValue Execute(LuaClosure Closure) {
+			return Machine.ExecuteFunction_Zero(Closure.Function);
+		}
+
+		public LuaValue Execute(LuaClosure Closure, LuaValue Arg){
+			return Machine.ExecuteFunction_One(Closure.Function, Arg);
+		}
+
+		public LuaValue Execute(LuaClosure Closure, LuaValue A1=null, LuaValue A2=null){
+			return Machine.ExecuteFunction_Two(Closure.Function, A1, A2);
+		}
+
+		public LuaValue Execute(LuaClosure Closure, LuaValue A1=null, LuaValue A2=null, LuaValue A3=null){
+			return Machine.ExecuteFunction_Three(Closure.Function, A1, A2, A3);
+		}
+
 		////
 		public LuaValue GetGlobalValue(string Name) {
 			LuaString LuaKey = new LuaString(Name);
-			return Globals[LuaKey];
+			return m_Globals[LuaKey];
 		}
 
 		////
 		private void InitSystemFunctions() {
-			BaseLib.LoadInto(this, Globals);
-			MathLib.LoadInto(this, Globals);
+			BaseLib.LoadInto(this, m_Globals);
+			MathLib.LoadInto(this, m_Globals);
 		}
 	}
 }
