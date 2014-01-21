@@ -148,6 +148,9 @@ namespace Cheese
 		// Make Key an Int, and do the calls to GetHashCode myself? 
 		private Dictionary<LuaValue, LuaValue> HashMap;
 
+		// Make a side-table for
+		// Dictionary<string, LuaValue> StringMap ?
+
 		public LuaTable() {
 			;
 		}
@@ -223,6 +226,32 @@ namespace Cheese
 			}
 		}
 
+		public LuaValue this[string Key]
+		{
+			get { 
+				if(HashMap == null)
+					return LuaNil.Nil;
+
+				LuaString LKey = new LuaString(Key);
+				if(HashMap.ContainsKey(LKey)) {
+					return HashMap[LKey];
+				}
+				else
+					return LuaNil.Nil;
+			}
+			set { 
+				if(HashMap == null)
+					HashMap = new Dictionary<LuaValue, LuaValue>();
+				if(Key == null)
+					return;
+				LuaString LKey = new LuaString(Key);
+				if(value == LuaNil.Nil)
+					HashMap.Remove(LKey);
+				else
+					HashMap[LKey] = value; 
+			}
+		}
+
 
 		public int Length {
 			get {
@@ -239,6 +268,20 @@ namespace Cheese
 				return HashMap.Count;
 			}
 		}
+
+
+		public bool Empty {
+			get {
+				if(Array == null && HashMap == null)
+					return true;
+				if(Array != null && Array.Count > 0)
+					return false;
+				if(HashMap != null && HashMap.Count > 0)
+					return false;
+				return true;
+			}
+		}
+
 
 		public IEnumerable<LuaValue> EnumerableArray
 		{
@@ -257,6 +300,47 @@ namespace Cheese
 			Array.Add(Item);
 		}
 
+		public void Add(LuaValue Key, LuaValue Value) {
+			if(HashMap == null)
+				HashMap = new Dictionary<LuaValue, LuaValue>();
+			HashMap.Add(Key, Value);
+		}
+
+
+		// ContainsKey 
+		public bool ContainsKey(LuaValue Key) {
+			if(Array != null) {
+				if(Key is LuaNumber) {
+					double NumVal = (Key as LuaNumber).Number;
+					if(NumVal % 1 == 0) {
+						long IntVal = (long)NumVal;
+						if(Array.Count > IntVal-1)
+							return true;
+					}
+				}
+
+				if(Key is LuaInteger) {
+					if(Array.Count > (Key as LuaInteger).Integer-1)
+						return true;
+				}
+			}
+
+			if(HashMap == null)
+				return false;
+
+			return HashMap.ContainsKey(Key);
+		}
+
+		public bool ContainsKey(string Key) {
+			if(HashMap == null)
+				return false;
+
+			LuaString LKey = new LuaString(Key);
+			return HashMap.ContainsKey(LKey);
+		}
+
+
+		// GetValue?
 	}
 
 	// Special type that isn't Table to store Argument lists?

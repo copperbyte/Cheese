@@ -432,6 +432,91 @@ namespace NUnitTests
 			ConsoleCompareTest(Code, Expected);
 		}
 
+
+
+		[Test()]
+		public void HostCallClosureTest()
+		{
+			string Code = @"
+				function print_repeat(msg, count)
+                  accum = '';
+                  for i = 1, count, 1 do
+    				accum = accum .. msg;
+  				  end  
+				  print(accum);
+                  return accum;
+                end
+
+				print_repeat(""a"", 3); ";
+
+			string Expected = "aaa\r\nbbbbb\r\n";
+
+
+			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			StringWriter LocalOut = new StringWriter();
+			LuaEnv.SetOutput(LocalOut);
+
+			LuaEnv.Execute(Code);
+
+			LuaClosure RptClosure = LuaEnv.GetGlobalValue("print_repeat") as LuaClosure;
+
+			LuaTable Args = new LuaTable();
+			Args.Add(new LuaString("b"));
+			Args.Add(new LuaInteger(5));
+
+			LuaTable Ret = LuaEnv.Execute(RptClosure, Args);
+
+			Assert.AreEqual(Expected, LocalOut.ToString());
+		    
+			Assert.AreEqual(1, Ret.Length);
+			Assert.AreEqual("bbbbb", (Ret[1] as LuaString).Text);
+		}
+	}
+
+	[TestFixture()]
+	public class LuaTableTests
+	{
+
+		public void ConsoleCompareTest(string Code, string Expected)
+		{
+			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			StringWriter LocalOut = new StringWriter();
+			LuaEnv.SetOutput(LocalOut);
+
+			LuaEnv.Execute(Code);
+
+			Assert.AreEqual(Expected, LocalOut.ToString());
+		}
+
+
+		[Test()]
+		public void ContainsKeyTest()
+		{
+			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			StringWriter LocalOut = new StringWriter();
+			LuaEnv.SetOutput(LocalOut);
+
+
+			LuaTable Table = new LuaTable();
+
+			Assert.True(Table.Empty);
+
+			LuaString TestKey = new LuaString("tk");
+			LuaString TestValue = new LuaString("tv");
+			LuaInteger TestIndex = new LuaInteger(1);
+
+			Assert.False(Table.ContainsKey(TestKey));
+			Assert.False(Table.ContainsKey(TestKey.Text));
+
+			Table.Add(TestKey, TestValue);
+			Assert.False(Table.Empty);
+			Assert.True(Table.ContainsKey(TestKey));
+			Assert.True(Table.ContainsKey(TestKey.Text));
+
+			Table.Add(TestValue);
+			Assert.True(Table.ContainsKey(TestIndex));
+		
+		}
 	}
 }
 
