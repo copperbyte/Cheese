@@ -477,18 +477,6 @@ namespace NUnitTests
 	public class LuaTableTests
 	{
 
-		public void ConsoleCompareTest(string Code, string Expected)
-		{
-			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
-			StringWriter LocalOut = new StringWriter();
-			LuaEnv.SetOutput(LocalOut);
-
-			LuaEnv.Execute(Code);
-
-			Assert.AreEqual(Expected, LocalOut.ToString());
-		}
-
-
 		[Test()]
 		public void ContainsKeyTest()
 		{
@@ -516,6 +504,32 @@ namespace NUnitTests
 			Table.Add(TestValue);
 			Assert.True(Table.ContainsKey(TestIndex));
 		
+		}
+
+		[Test()]
+		public void EnumeratorTest()
+		{
+			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			StringWriter LocalOut = new StringWriter();
+			LuaEnv.SetOutput(LocalOut);
+
+			LuaTable Table = new LuaTable();
+			LuaString TestKey = new LuaString("tk");
+			LuaString TestValue = new LuaString("tv1");
+			LuaString TestValue2 = new LuaString("tv2");
+			LuaInteger TestIndex = new LuaInteger(1);
+
+			Table.Add(TestKey, TestValue);
+			Table.Add(TestValue);
+			Table.Add(TestValue2, TestValue2);
+			Table.Add(TestValue2);
+
+			foreach(var Entry in Table) {
+				LocalOut.Write("{0}:{1};", Entry.Key, Entry.Value);
+			}
+
+			Assert.AreEqual("1:tv1;2:tv2;tk:tv1;tv2:tv2;", LocalOut.ToString());
+
 		}
 	}
 }

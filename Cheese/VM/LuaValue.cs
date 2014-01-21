@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Cheese
@@ -137,7 +138,7 @@ namespace Cheese
 		}
 	}
 
-	public class LuaTable : LuaValue {
+	public class LuaTable : LuaValue, IEnumerable<KeyValuePair<LuaValue,LuaValue>> {
 
 		//public static readonly LuaTable Default = new LuaTable();
 
@@ -294,6 +295,21 @@ namespace Cheese
 		}
 
 
+		#region IEnumerable implementation
+		IEnumerator<KeyValuePair<LuaValue, LuaValue>> 
+		IEnumerable<KeyValuePair<LuaValue, LuaValue>>.GetEnumerator()
+		{
+			return new Enumerator(this);
+		}
+		#endregion
+		#region IEnumerable implementation
+		IEnumerator IEnumerable.GetEnumerator()
+		{
+			return new Enumerator(this);
+		}
+		#endregion
+
+
 		public void Add(LuaValue Item) {
 			if(Array == null)
 				Array = new List<LuaValue>();
@@ -341,6 +357,124 @@ namespace Cheese
 
 
 		// GetValue?
+
+		public struct Enumerator : IEnumerator<KeyValuePair<LuaValue, LuaValue>>, 
+		    IDisposable, IEnumerator  {
+
+			private LuaTable Source;
+			private IEnumerator<LuaValue> ArrayEnumer;
+			private IEnumerator<KeyValuePair<LuaValue,LuaValue>> HashEnumer;
+			private KeyValuePair<LuaValue, LuaValue> mCurrent;
+			long ArrayIndex;
+			private enum EState
+			{ 
+				eInit,
+				eArray,
+				eHash,
+				eEnd
+			};
+			EState State;
+
+			private bool disposed;
+
+			public Enumerator(LuaTable Table) 
+			{
+				disposed = false;
+				Source = Table;
+				ArrayEnumer = null;
+				HashEnumer = null;
+				ArrayIndex = 0;
+				State = EState.eInit;
+				mCurrent = new KeyValuePair<LuaValue, LuaValue>();
+				Reset();
+			}
+
+			public void Reset() {
+				ArrayIndex = 0;
+				State = EState.eInit;
+
+				if(Source.Array != null)
+					ArrayEnumer = Source.Array.GetEnumerator();
+				if(Source.HashMap != null)
+					HashEnumer = Source.HashMap.GetEnumerator();
+
+				if(ArrayEnumer == null && HashEnumer == null)
+					State = EState.eEnd;
+			}
+
+			public KeyValuePair<LuaValue, LuaValue> Current { 
+				get { return mCurrent; }
+			}
+
+			Object IEnumerator.Current { 
+				get { return mCurrent; }
+			}
+
+			public bool MoveNext() {
+				// true if the enumerator was successfully advanced to the next element; 
+				// false if the enumerator has passed the end of the collection.
+
+				if(State == EState.eEnd) {
+					return false;
+				}
+
+				if(State == EState.eInit) {
+					if(ArrayEnumer != null)
+						State = EState.eArray;
+					else if(HashEnumer != null)
+						State = EState.eHash;
+					else
+						State = EState.eEnd;
+				}
+
+				if(State == EState.eArray) {
+					bool Advanced = ArrayEnumer.MoveNext();
+					if(Advanced) {
+						ArrayIndex++;
+						mCurrent = new KeyValuePair<LuaValue, LuaValue>(
+							new LuaInteger(ArrayIndex),
+							ArrayEnumer.Current);
+						return true;
+					} else {
+						if(HashEnumer != null)
+							State = EState.eHash;
+						else
+							State = EState.eEnd;
+					}
+				}
+
+				if(State == EState.eHash) {
+					bool Advanced = HashEnumer.MoveNext();
+					if(Advanced) {
+						mCurrent = new KeyValuePair<LuaValue, LuaValue>(
+							HashEnumer.Current.Key,
+							HashEnumer.Current.Value);
+						return true;
+					} else {
+						State = EState.eEnd;
+					}
+				}
+
+				if(State == EState.eEnd) {
+					return false;
+				}
+
+				return false;
+			} 
+		
+			public void Dispose()
+			{
+				if(!this.disposed)
+				{
+					disposed = true;
+					if(ArrayEnumer != null)
+						ArrayEnumer.Dispose();
+					if(HashEnumer != null)
+						HashEnumer.Dispose();
+				}
+			}
+
+		} // end Enumerator
 	}
 
 	// Special type that isn't Table to store Argument lists?
