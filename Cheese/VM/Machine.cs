@@ -228,13 +228,18 @@ namespace Cheese.Machine
 
 		internal LuaTable ExecuteFunction(Function Function, LuaTable Args, int CallDepth=1) {
 
-			Stack.PushFrame(ProgramCounter, Function, 0, Args.Length);
+			if(Args == null)
+				Stack.PushFrame(ProgramCounter, Function, 0, 0);
+			else
+				Stack.PushFrame(ProgramCounter, Function, 0, Args.Length);
 			ProgramCounter = 0;
 
 			int ArgI = 0;
-			foreach(LuaValue Curr in Args.EnumerableArray) {
-				Stack[ArgI] = Curr;
-				ArgI++;
+			if(Args != null) {
+				foreach(LuaValue Curr in Args.EnumerableArray) {
+					Stack[ArgI] = Curr;
+					ArgI++;
+				}
 			}
 
 			ExecuteMachine(CallDepth);
@@ -368,7 +373,9 @@ namespace Cheese.Machine
 				// SETLIST   // R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B
 				case Instruction.OP.SETLIST: {
 					LuaTable TableValue = Stack[CurrOp.A] as LuaTable;
-					for(int si = CurrOp.A+1, di = CurrOp.C; si <= CurrOp.B; si++, di++) {
+					for(int i = 0; i < CurrOp.B; i++) {
+						int si = CurrOp.A + i + 1;
+						int di = CurrOp.C + i;
 						TableValue[di] = Stack[si];
 					}
 					continue;

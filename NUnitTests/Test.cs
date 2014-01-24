@@ -464,7 +464,7 @@ namespace NUnitTests
 			Args.Add(new LuaString("b"));
 			Args.Add(new LuaInteger(5));
 
-			LuaTable Ret = LuaEnv.Execute(RptClosure, Args);
+			LuaTable Ret = LuaEnv.Execute_VarArg(RptClosure, Args);
 
 			Assert.AreEqual(Expected, LocalOut.ToString());
 		    
@@ -529,6 +529,34 @@ namespace NUnitTests
 			}
 
 			Assert.AreEqual("1:tv1;2:tv2;tk:tv1;tv2:tv2;", LocalOut.ToString());
+
+		}
+
+		[Test()]
+		public void TableMixUseTest()
+		{
+			string Code = @"
+				card = {};
+				card.test_table = { ""fighter"" }; 
+			";
+
+			string Expected = "aaa\r\nbbbbb\r\n";
+
+			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			StringWriter LocalOut = new StringWriter();
+			LuaEnv.SetOutput(LocalOut);
+
+			LuaEnv.Execute(Code);
+
+
+			LuaTable CardTable = (LuaTable)LuaEnv.GetGlobalValue("card");
+			LuaTable NestedTable = (LuaTable)CardTable["test_table"];
+
+			foreach(var Entry in NestedTable) {
+				LocalOut.Write("{0}:{1};", Entry.Key, Entry.Value);
+			}
+
+			Assert.AreEqual("1:fighter;", LocalOut.ToString());
 
 		}
 	}

@@ -613,7 +613,7 @@ namespace Cheese.Machine
 
 
 		////
-		public LuaTable Execute(LuaClosure Closure, LuaTable Args) {
+		public LuaTable Execute_VarArg(LuaClosure Closure, LuaTable Args) {
 
 			return Machine.ExecuteFunction(Closure.Function, Args);
 		}

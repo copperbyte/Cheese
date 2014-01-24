@@ -31,18 +31,22 @@ namespace CheeseExec
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_five.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\test_six.slua",FileMode.Open);
 			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\timetest.lua",FileMode.Open);
-			//FileStream TestFile = new FileStream("..\\..\\TestFiles\\self_test.slua",FileMode.Open);
-				TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\concat_test.slua",FileMode.Open);
+			//  TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\self_test.slua",FileMode.Open);
+			//	TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\precedence_test.slua",FileMode.Open);
+			//	TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\concat_test.slua",FileMode.Open);
+				TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\logiop_test.slua",FileMode.Open);
+			//	TestFile = new FileStream("..\\..\\..\\Cheese\\TestFiles\\tailcall_test.slua",FileMode.Open);
+
 			}
 
 
-			// TODO:  	UPVAL, CLOSE , everything
+			// TODO:  	
 			//          and, or, compiler
 			//			VARARG , everything
-			// 			TAILCALL , everything
 			//			System Functions
 			//   		Less allocations? Cache simple values? 
 			//          String-to-number auto-converts?
+			//          UPVAL, CLOSE , everything
 
 
 			StreamReader TestFileReader = new StreamReader(TestFile);
