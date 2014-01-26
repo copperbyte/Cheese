@@ -190,6 +190,13 @@ namespace Cheese
 			Token Result = MakeToken();
 			if(Keywords.Contains(Result.Value))
 				Result.Type = Token.EType.KEYWORD;
+		
+			// special NAMEs
+			if(Result.Value == "__LINE__") {
+				Result.Value = StartLine.ToString();
+				Result.Type = Token.EType.NUMBER;
+			}
+
 			return Result;
 		}
 
