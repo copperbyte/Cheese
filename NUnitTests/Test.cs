@@ -75,6 +75,19 @@ namespace NUnitTests
 			string Expected = "1\t2\t3\r\n";
 
 			ConsoleCompareTest(Code, Expected);
+
+			/////////////
+
+			Code = @"
+				st = { APPLE=1, ORANGE=2, PEAR=3 };
+				local dt = {};
+				dt.value = st.ORANGE;
+				print(dt.value); ";
+
+			Expected = "2\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+
 		}
 
 		[Test()]

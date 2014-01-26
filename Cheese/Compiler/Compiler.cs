@@ -782,7 +782,7 @@ namespace Cheese
 				if(RVal.IsTable) {
 					CompilerValue TReg = GetTReg();
 					EmitToRegisterOp(TReg, RVal);
-					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, RVal.Index);
+					CurrFunc.Instructions.Add(Instruction.OP.SETTABLE, UseLVal.Index, UseKey.Index, KeyConst, TReg.Index);
 					FreeRegister(TReg);
 					// generate a GETTABLE, then assign? 
 				} else if(RVal.IsRegister) {
