@@ -797,7 +797,7 @@ namespace Cheese
 				} 
 				// else if upval
 
-				FreeRegister(UseLVal);
+				//	FreeRegister(UseLVal);
 				FreeRegister(UseKey);
 				FreeRegister(RVal);
 			} else if(LVal.IsRegister) {
@@ -2022,7 +2022,7 @@ namespace Cheese
 						continue; 
 					if(Field.Children.Count == 1) 
 						ArrayCount++;
-					else if(Field.Children.Count == 3) // blah = exp
+					else if(Field.Children.Count == 3 || Field.Children.Count == 5) // blah = exp
 						HashCount++;
 				}
 			}
@@ -2054,11 +2054,12 @@ namespace Cheese
 						ClaimRegister(ArrayVals[ArrayIndex]);
 						ArrayIndex++;
 					}
-					else if(Field.Children.Count == 3)  {// blah = exp
+					else if(Field.Children.Count == 3 ||
+						    Field.Children.Count == 5)  {// blah = exp
 						// Process, SETTABLE.
 						// Process Left make key, Process Right
 						ParseNode KeyNode = Field.Children[0];
-						ParseNode ValNode = Field.Children[2];
+						ParseNode ValNode = Field.Children[ Field.Children.Count-1 ];
 
 						CompilerValue KeyVal = null;
 						if(KeyNode.Type == ParseNode.EType.TERMINAL && 
@@ -2066,7 +2067,7 @@ namespace Cheese
 							KeyVal = GetConstIndex(KeyNode.Token.Value);
 						} else if(KeyNode.Type == ParseNode.EType.TERMINAL &&
 							KeyNode.Token.IsBracket("[")) {
-							VList T = CompileExp(KeyNode.Children[1]);
+							VList T = CompileExp(Field.Children[1]);
 							KeyVal = T[0];
 						}
 						ConsReg.Key = KeyVal;

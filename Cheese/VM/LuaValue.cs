@@ -192,12 +192,14 @@ namespace Cheese
 					double NumVal = (Key as LuaNumber).Number;
 					if(NumVal % 1 == 0) {
 						long IntVal = (long)NumVal;
-						return this[IntVal];
+						if(Array != null && Array.Count >= IntVal)
+							return this[IntVal];
 					}
 				}
 
 				if(Key is LuaInteger) {
-					return this[(Key as LuaInteger).Integer];
+					if(Array != null && Array.Count >= (Key as LuaInteger).Integer)
+						return this[(Key as LuaInteger).Integer];
 				}
 
 				if(HashMap == null)

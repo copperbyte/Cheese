@@ -88,6 +88,16 @@ namespace NUnitTests
 
 			ConsoleCompareTest(Code, Expected);
 
+			/////////////
+
+			Code = @"
+				st = { APPLE=1, ORANGE=2, PEAR=3 };
+				local dt = { [st.APPLE]=""pie"", [st.ORANGE]=""juice"", [st.PEAR]=""can"" };
+				print(dt[st.ORANGE]); ";
+
+			Expected = "juice\r\n";
+
+			ConsoleCompareTest(Code, Expected);
 		}
 
 		[Test()]
