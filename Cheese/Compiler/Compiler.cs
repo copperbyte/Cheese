@@ -2090,7 +2090,7 @@ namespace Cheese
 			}
 
 			// Setlist
-
+			ConsReg.Key = null;
 			return ConsReg;
 		}
 
