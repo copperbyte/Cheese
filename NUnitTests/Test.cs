@@ -468,6 +468,31 @@ namespace NUnitTests
 		}
 
 
+		[Test()]
+		public void TableReturnTest()
+		{
+			string Code = @"
+				function gen(parent)
+                  local child = {};
+                  child.base = parent;
+                  child.generation = parent.generation + 1;
+                  return child;
+				end
+
+                local start = {};
+				start.generation = 1;
+
+                local next = gen(start);
+                print(next.generation); 
+
+				local final = gen(next);
+                print(final.generation);
+                ";
+
+			string Expected = "2\r\n3\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
 
 		[Test()]
 		public void HostCallClosureTest()
@@ -505,6 +530,36 @@ namespace NUnitTests
 		    
 			Assert.AreEqual(1, Ret.Length);
 			Assert.AreEqual("bbbbb", (Ret[1] as LuaString).Text);
+		}
+
+
+		[Test()]
+		public void HostCallClosureOneTest()
+		{
+			string Code = @"
+				function gen(parent)
+                  local child = {};
+                  child.base = parent;
+                  child.generation = parent.generation + 1;
+                  return child;
+				end
+                ";
+
+			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			StringWriter LocalOut = new StringWriter();
+			LuaEnv.SetOutput(LocalOut);
+
+			LuaEnv.Execute(Code);
+
+			LuaClosure GenFunc = LuaEnv.GetGlobalValue("gen") as LuaClosure;
+
+			LuaTable StartGen = new LuaTable();
+			StartGen.Add(new LuaString("generation"), new LuaInteger(1));
+
+			LuaValue Ret = LuaEnv.Execute(GenFunc, StartGen);
+			LuaTable NextGen = Ret as LuaTable;
+
+			Assert.AreEqual(2, (NextGen["generation"] as LuaInteger).Integer);
 		}
 	}
 

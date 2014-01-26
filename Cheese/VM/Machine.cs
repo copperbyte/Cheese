@@ -261,7 +261,7 @@ namespace Cheese.Machine
 			ExecuteMachine(CallDepth);
 			LuaValue Ret = null;
 			if(Stack.Top > 1)
-				Ret = Stack[0];
+				Ret = Stack[-1];
 			ProgramCounter = Stack.PopFrame(0);	
 			return Ret;
 		}
@@ -278,7 +278,7 @@ namespace Cheese.Machine
 			ExecuteMachine(CallDepth);
 			LuaValue Ret = null;
 			if(Stack.Top > 1)
-				Ret = Stack[0];
+				Ret = Stack[-1];
 			ProgramCounter = Stack.PopFrame(0);	
 			return Ret;
 		}
@@ -293,7 +293,7 @@ namespace Cheese.Machine
 			ExecuteMachine(CallDepth);
 			LuaValue Ret = null;
 			if(Stack.Top > 1)
-				Ret = Stack[0];
+				Ret = Stack[-1];
 			ProgramCounter = Stack.PopFrame(0);	
 			return Ret;
 		}
@@ -309,7 +309,7 @@ namespace Cheese.Machine
 			ExecuteMachine(CallDepth);
 			LuaValue Ret = null;
 			if(Stack.Top > 1)
-				Ret = Stack[0];
+				Ret = Stack[-1];
 			ProgramCounter = Stack.PopFrame(0);	
 			return Ret;
 		}
