@@ -494,6 +494,28 @@ namespace NUnitTests
 			ConsoleCompareTest(Code, Expected);
 		}
 
+
+		[Test()]
+		public void TableFuncArgsTest()
+		{
+		// 	local res = math.max(character.stats[first], character.stats[second])			
+			string Code = @"
+
+                local first  = ""STR"";
+				local second = ""AGI"";
+
+				local character = {}
+				character.stats = { STR=20, AGI=15, INT=12 };
+				
+				local res = math.max(character.stats[first], character.stats[second])			
+				print(res);
+				";
+
+			string Expected = "20\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
 		[Test()]
 		public void HostCallClosureTest()
 		{
@@ -531,7 +553,6 @@ namespace NUnitTests
 			Assert.AreEqual(1, Ret.Length);
 			Assert.AreEqual("bbbbb", (Ret[1] as LuaString).Text);
 		}
-
 
 		[Test()]
 		public void HostCallClosureOneTest()

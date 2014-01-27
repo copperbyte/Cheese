@@ -682,7 +682,7 @@ namespace Cheese
 			if(!LVal.IsRegister)
 				return;
 
-			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index)
+			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index && LVal.Key == RVal.Key)
 				return;
 
 			if(RVal.IsTable) {
@@ -708,7 +708,7 @@ namespace Cheese
 			if(!RVal.IsRegister)
 				return;
 
-			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index)
+			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index && LVal.Key == RVal.Key)
 				return;
 
 
@@ -735,10 +735,10 @@ namespace Cheese
 			//Console.WriteLine("E1:  {0}  <=  {1}", LVal, RVal);
 
 
-			if(LVal.Loc == RVal.Loc && LVal.Index == RVal.Index)
+			if(LVal.Loc == RVal.Loc && LVal.Index == RVal.Index && LVal.Key == RVal.Key)
 				return;
 
-			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index)
+			if(LVal.IsRegister && RVal.IsRegister && LVal.Index == RVal.Index && LVal.Key == RVal.Key)
 				return;
 
 
