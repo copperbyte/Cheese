@@ -48,7 +48,7 @@ namespace Cheese.Machine
 		}
 
 		public void Reserve(int Space) {
-			int Needed = CurrFrame.Top + Space+1;
+			int Needed = CurrFrame.Base +CurrFrame.Top+ Space+1;
 			if(Registers.Count >= Needed) {
 				return;
 			} else {
@@ -78,7 +78,7 @@ namespace Cheese.Machine
 
 		public void PushFrame(int PC, Function Func, int ArgBase, int ArgCount) {
 			if(Func != null)
-				Reserve(Func.MaxStackSize - ArgBase + 1);
+				Reserve(Func.MaxStackSize + 1);
 
 			//Console.WriteLine("PushFrame F: {0},{1}", CurrFrame.Base, CurrFrame.Top);
 			//Console.WriteLine("PushFrame A: {0},{1}", ArgBase, ArgCount);
@@ -159,7 +159,7 @@ namespace Cheese.Machine
 			//Console.WriteLine("TailCall  N: {0},{1}", CurrFrame.Base, CurrFrame.Top);
 
 			if(Func != null)
-				Reserve(Func.MaxStackSize - ArgBase + 1);
+				Reserve(Func.MaxStackSize + 1);
 
 			for(int I = CurrFrame.Base+CurrFrame.Top+1; I < Registers.Count; I++) {
 				Registers[I] = LuaNil.Nil;
@@ -439,7 +439,7 @@ namespace Cheese.Machine
 					else {
 						LuaNumber F, S;
 						F = FV as LuaNumber;
-						S = FV as LuaNumber;
+						S = SV as LuaNumber;
 				
 						double dR = default(double);
 						switch(CurrOp.Code) { 
