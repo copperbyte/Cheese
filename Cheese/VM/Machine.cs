@@ -437,29 +437,35 @@ namespace Cheese.Machine
 						continue;
 					} 
 					else {
-						LuaNumber F, S;
-						F = FV as LuaNumber;
-						S = SV as LuaNumber;
-				
+						double FD = 0.0, SD = 0.0;
+						if(FV is LuaInteger)
+							FD = (double)(FV as LuaInteger).Integer;
+						else if(FV is LuaNumber)
+							FD = (FV as LuaNumber).Number;
+						if(SV is LuaInteger)
+							SD = (double)(SV as LuaInteger).Integer;
+						else if(SV is LuaNumber)
+							SD = (SV as LuaNumber).Number;
+			
 						double dR = default(double);
 						switch(CurrOp.Code) { 
 						case Instruction.OP.ADD:
-							dR = (F.Number + S.Number);
+							dR = (FD + SD);
 							break;
 						case Instruction.OP.SUB:
-							dR = (F.Number - S.Number);
+							dR = (FD - SD);
 							break;
 						case Instruction.OP.MUL:
-							dR = (F.Number * S.Number);
+							dR = (FD * SD);
 							break;
 						case Instruction.OP.DIV:
-							dR = (F.Number / S.Number);
+							dR = (FD / SD);
 							break;
 						case Instruction.OP.MOD:
-							dR = (F.Number % S.Number);
+							dR = (FD % SD);
 							break;
 						case Instruction.OP.POW:
-							dR = (Math.Pow(F.Number, S.Number));
+							dR = (Math.Pow(FD, SD));
 							break;
 						}
 						Stack[CurrOp.A] = new LuaNumber(dR);
