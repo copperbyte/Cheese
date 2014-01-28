@@ -573,12 +573,23 @@ namespace Cheese.Machine
 					LuaValue RVal = GetRK(CurrOp.C, CurrOp.rkC);
 
 					int CompInt = 0;
-					if(LVal.GetType() == typeof(LuaNumber)) {
-						CompInt = ((LVal as LuaNumber).Number < (RVal as LuaNumber).Number) ? 1 : 0;
-					} else if(LVal.GetType() == typeof(LuaInteger)) {
+					
+					if (LVal is LuaInteger && RVal is LuaInteger) {
 						CompInt = ((LVal as LuaInteger).Integer < (RVal as LuaInteger).Integer) ? 1 : 0;
-					} else if(LVal.GetType() == typeof(LuaString)) {
-						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) == -1) ? 1 : 0;
+					} else if (LVal is LuaString && RVal is LuaString) {
+							CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) == -1) ? 1 : 0;
+					} else {
+						double LD = 0.0, RD = 0.0;
+						if(LVal is LuaInteger)
+							LD = (double)(LVal as LuaInteger).Integer;
+						else if(LVal is LuaNumber)
+							LD = (LVal as LuaNumber).Number;
+						if(RVal is LuaInteger)
+							RD = (double)(RVal as LuaInteger).Integer;
+						else if(RVal is LuaNumber)
+							RD = (RVal as LuaNumber).Number;
+
+						CompInt = (LD < RD) ? 1 : 0;
 					}
 
 					if(CompInt == CurrOp.A) {
@@ -595,14 +606,25 @@ namespace Cheese.Machine
 					LuaValue RVal = GetRK(CurrOp.C, CurrOp.rkC);
 
 					int CompInt = 0;
-					if(LVal.GetType() == typeof(LuaNumber)) {
-						CompInt = ((LVal as LuaNumber).Number <= (RVal as LuaNumber).Number) ? 1 : 0;
-					} else if(LVal.GetType() == typeof(LuaInteger)) {
+					
+					if (LVal is LuaInteger && RVal is LuaInteger) {
 						CompInt = ((LVal as LuaInteger).Integer <= (RVal as LuaInteger).Integer) ? 1 : 0;
-					} else if(LVal.GetType() == typeof(LuaString)) {
+					} else if (LVal is LuaString && RVal is LuaString) {
 						CompInt = (String.Compare((LVal as LuaString).Text, (RVal as LuaString).Text) != 1) ? 1 : 0;
-					}
+					} else {
+						double LD = 0.0, RD = 0.0;
+						if(LVal is LuaInteger)
+							LD = (double)(LVal as LuaInteger).Integer;
+						else if(LVal is LuaNumber)
+							LD = (LVal as LuaNumber).Number;
+						if(RVal is LuaInteger)
+							RD = (double)(RVal as LuaInteger).Integer;
+						else if(RVal is LuaNumber)
+							RD = (RVal as LuaNumber).Number;
 
+						CompInt = (LD <= RD) ? 1 : 0;
+					}
+					
 					if(CompInt == CurrOp.A) {
 						Instruction NextJmp = Stack.Func.Instructions[ProgramCounter];
 						ProgramCounter += NextJmp.B; 
