@@ -8,7 +8,6 @@ using Cheese;
 namespace Cheese.Machine
 {
 
-
 	internal class VmStack {
 		//List<LuaValue> Storage;
 		List<LuaValue> Registers;
@@ -59,22 +58,6 @@ namespace Cheese.Machine
 			}
 		}
 
-		/*
-		public void PushFrame(int PC, int Size) {
-			Reserve(Size + 2);
-
-			CurrFrame.PC = PC;
-			Frames.Add(CurrFrame);
-
-			//Storage[TopPointer] = PC;
-			//Storage[TopPointer+1] = FramePointer;
-
-			CurrFrame.Base = CurrFrame.Top;
-
-			//FramePointer += 2;
-			//TopPointer = FramePointer + Size;
-			// Track Top Pointer more exactly?
-		}*/
 
 		public void PushFrame(int PC, Function Func, int ArgBase, int ArgCount) {
 			if(Func != null)
@@ -530,7 +513,7 @@ namespace Cheese.Machine
 					} 
 					else if(SV is LuaTable) {
 						LuaTable ST = SV as LuaTable;
-						Stack[CurrOp.A] = new LuaInteger( ST.Length );
+						Stack[CurrOp.A] = new LuaInteger( ST.Length+ST.Count );
 						continue;
 					}
 					// error
@@ -882,9 +865,7 @@ namespace Cheese.Machine
 					}
 					else if(FuncValue is LuaClosure) {
 						LuaClosure ClosureValue = FuncValue as LuaClosure;
-
-						// Capture Args
-
+						
 						Stack.PushFrame(ProgramCounter, ClosureValue.Function, CurrOp.A, CurrOp.B);
 						ProgramCounter = 0;
 						CallDepth++;

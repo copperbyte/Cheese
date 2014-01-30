@@ -45,6 +45,7 @@ namespace Cheese
 
 		public static readonly LuaString Empty = new LuaString(string.Empty);
 
+		int Hash;
 		public String Text {
 			get;
 			private set;
@@ -52,6 +53,7 @@ namespace Cheese
 
 		public LuaString(string Value) {
 			Text = Value;
+			Hash = Value.GetHashCode();
 		}
 
 		public override string ToString() {
@@ -62,14 +64,27 @@ namespace Cheese
 			if(Other == null)
 				return false;
 			else if(Other is string) 
-				return this.Text.Equals(Other);
+				return (this.Text == (Other as string));
 			else if(Other is LuaString)
 				return this.Text == (Other as LuaString).Text;
 			else
 				return false;
 		}
+		public bool Equals(string Other) {
+			if(Other == null)
+				return false;
+			else 
+				return (this.Text == Other);
+		}
+		public bool Equals(LuaString Other) {
+			if(Other == null)
+				return false;
+			else
+				return this.Text == (Other as LuaString).Text;
+		}
 		public override int GetHashCode() {
-			return Text.GetHashCode();
+			//return Text.GetHashCode();
+			return Hash;
 		}
 	}
 
