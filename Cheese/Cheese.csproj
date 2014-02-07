@@ -29,6 +29,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="AlgoLib">
+      <HintPath>..\..\..\trie-master\AlgoLib\AlgoLib\bin\Release\AlgoLib.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -40,6 +43,7 @@
     <Compile Include="VM\Function.cs" />
     <Compile Include="VM\Instruction.cs" />
     <Compile Include="VM\LuaValue.cs" />
+    <Compile Include="VM\LuaTable.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
