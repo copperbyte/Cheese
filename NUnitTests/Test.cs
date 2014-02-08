@@ -200,7 +200,7 @@ namespace NUnitTests
 				ltbl = #tbl;
 				print(lstr,ltbl); ";
 
-			string Expected = "7\t3\r\n";
+			string Expected = "7\t6\r\n";
 
 			ConsoleCompareTest(Code, Expected);
 		}

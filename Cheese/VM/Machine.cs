@@ -219,8 +219,9 @@ namespace Cheese.Machine
 
 			int ArgI = 0;
 			if(Args != null) {
-				foreach(LuaValue Curr in Args.EnumerableArray) {
-					Stack[ArgI] = Curr;
+				//foreach(LuaValue Curr in Args.EnumerableArray) {
+				foreach(var Curr in Args) {	
+					Stack[ArgI] = Curr.Value;
 					ArgI++;
 				}
 			}
