@@ -454,7 +454,7 @@ namespace NUnitTests
 		}
 
 		[Test()]
-		public void ForIterLoopTest()
+		public void ForIterIPairsLoopTest()
 		{
 			string Code = @"
 				tbl = {""a"", ""b"", ""c""}
@@ -463,6 +463,64 @@ namespace NUnitTests
 				end  ";
 
 			string Expected = "1\ta\r\n2\tb\r\n3\tc\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void ForIterPairsLoopTest()
+		{
+			string Code = @"
+				tbl = { [a]=1, [b]=2, [c]=3}
+				cpy = {}
+				for key, value in pairs(tbl) do
+					cpy[key] = (cpy[key] or 0) + value;
+					print(key, value)
+				end 	 
+				for key, value in pairs(cpy) do
+					print(key, value)
+				end
+				";
+
+			string Expected = "a\t1\r\nb\t2\r\nc\t3\r\na\t1\r\nb\t2\r\nc\t3\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void AssignOrTest()
+		{
+			string Code = @"
+				tbl = { ['a']=1, ['b']=2}
+				tbl['b'] = (tbl['b'] or 0) + 2;
+				tbl['c'] = (tbl['c'] or 0) + 3;
+				print(tbl['b'],tbl['c']);
+				";
+
+			string Expected = "4\t3\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void AssignFuncResultTest()
+		{
+			string Code = @"
+                function dice(size)
+					return math.random(size);
+				end
+
+				function testfunc()
+					local first = dice(20);
+					local second = dice(20);
+					
+					local r = first + second;
+					print(first, second, r);
+				end
+
+				testfunc();	";
+
+			string Expected = "1\r\n";
 
 			ConsoleCompareTest(Code, Expected);
 		}

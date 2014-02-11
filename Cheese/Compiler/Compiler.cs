@@ -203,10 +203,13 @@ namespace Cheese
 
 		List<CompilerValue> Globals;
 
+		bool InConditional;
+
 		public Compiler()
 		{
 			FunctionStack = new Stack<CompilerFunction>();
 			Globals = new List<CompilerValue>();
+			InConditional = false;
 		}
 
 
@@ -1096,9 +1099,11 @@ namespace Cheese
 
 				// SetBranchSrcJmp(true) is for inside the CompileExp
 				VList ExpVs = null;
-				if(Exp != null) 
+				if(Exp != null) {
+					InConditional = true;
 					ExpVs = CompileExp(Exp);
-
+					InConditional = false;
+				}
 
 				if(ExpVs != null) {
 					CompilerValue ExpV = ExpVs[0];
@@ -1165,9 +1170,11 @@ namespace Cheese
 
 			{{
 				VList ExpVs = null;
-				if(Exp != null) 
+				if(Exp != null) {
+					InConditional = true;
 					ExpVs = CompileExp(Exp);
-
+					InConditional = false;
+				}
 
 				if(ExpVs != null) {
 					CompilerValue ExpV = ExpVs[0];
@@ -1231,9 +1238,11 @@ namespace Cheese
 
 			{{
 					VList ExpVs = null;
-					if(Exp != null) 
+					if(Exp != null) {
+						InConditional = true;
 						ExpVs = CompileExp(Exp);
-
+						InConditional = false;
+					}
 
 					if(ExpVs != null) {
 						CompilerValue ExpV = ExpVs[0];
@@ -1301,6 +1310,7 @@ namespace Cheese
 			VisableValue = CreateLocal(VarName.Token.Value);
 
 			// Assign values to the loop vals
+			InConditional = true;
 
 			EmitAssignOp(IndexVal, CompileSingularExp(InitExp, IndexVal));	
             FinalizeLocal(IndexVal);
@@ -1317,6 +1327,7 @@ namespace Cheese
 			FinalizeLocal(StepVal);
 
 			FinalizeLocal(VisableValue);
+			InConditional = false;
 
 			int PrepOp = CurrFunc.Instructions.Count;
 			int LoopOp = 0;
@@ -1364,7 +1375,9 @@ namespace Cheese
 			VList VisableVals = CompileNameList(NameList);
 
 			VList InternalVals = new VList() { GeneratorVal, StateVal, ControlVal };
+			InConditional = true;
 			VList CalledInternalVals = CompileExpList(ExpList, InternalVals);
+			InConditional = false;
 			// Assign vals?
 			FinalizeLocal(GeneratorVal);
 			FinalizeLocal(StateVal);
@@ -1548,7 +1561,9 @@ namespace Cheese
 				if(Child.Type != ParseNode.EType.EXP)
 					continue;
 
+				PushBranch();
 				VList CurrVs = CompileExp(Child, LVals, Result);
+				PopBranch();
 
 				foreach(CompilerValue CurrV in CurrVs) {
 					CompilerValue BetterV = GetLReg(LVals, Result);
@@ -2230,13 +2245,13 @@ namespace Cheese
 			// binops of a same level are compressed by parser
 			Console.WriteLine("Logi LRVal Count:  {0}   {1}", LVals==null?-1:LVals.Count, RVals==null?-1:RVals.Count);
 
-			CompilerValue DestReg = GetLReg(LVals, RVals);
+			CompilerValue DestReg = GetLRegorTReg(LVals, RVals);//GetLReg(LVals, RVals);
 
 			CompilerValue FinalV = null;
 
 			// Logic only
-			if(DestReg == null) {
-
+			//if(DestReg == null) 
+			if(InConditional) {
 				for(int Loop = 0; Loop < LogiOp.Children.Count; Loop += 2) {
 
 					ParseNode Child = LogiOp.Children[Loop];
@@ -2247,6 +2262,7 @@ namespace Cheese
 
 					CompilerValue LogiVal = CompileExp(Child, LVals, RVals)[0];
 					CompilerValue LogiReg = GetAsRegister(LogiVal);
+					FreeRegister(LogiReg);
 					FinalV = LogiReg;
 
 					if(NextOp != null) {
@@ -2261,11 +2277,15 @@ namespace Cheese
 						}
 					} 
 				}
+				if(FinalV != null)
+					ClaimRegister(FinalV);
 				return FinalV;
 			} 
 			// Assignments
 			else {
 				PushBranch();
+				if(RVals == null)
+					RVals = new VList();
 				RVals.Add(DestReg);
 
 				for(int Loop = 0; Loop < LogiOp.Children.Count; Loop += 2) {
@@ -2279,23 +2299,30 @@ namespace Cheese
 					CompilerValue LogiVal = null;
 					{
 						PushBranch();
+						FreeRegister(DestReg);
 						LogiVal = CompileExp(Child, LVals, RVals)[0];
 						SetBranchDest(true);
-
 					}
 					CompilerValue LogiReg = GetAsRegister(LogiVal);
 					FinalV = LogiReg;
+					ClaimRegister(LogiReg);
 
 					if(NextOp != null) {
 						if(NextOp.Token.IsKeyword("and")) {
-							CurrFunc.Instructions.Add(Instruction.OP.TESTSET, DestReg.Index, LogiReg.Index, 0);
+							if(DestReg.Index == LogiReg.Index)
+								CurrFunc.Instructions.Add(Instruction.OP.TEST, LogiReg.Index, -2, 0);
+							else
+								CurrFunc.Instructions.Add(Instruction.OP.TESTSET, DestReg.Index, LogiReg.Index, 0);
 							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
 							SetBranchSrcJmp(false,1);
 						} else if(NextOp.Token.IsKeyword("or")) {
-							CurrFunc.Instructions.Add(Instruction.OP.TESTSET, DestReg.Index, LogiReg.Index, 1);
+							if(DestReg.Index == LogiReg.Index)
+								CurrFunc.Instructions.Add(Instruction.OP.TEST, LogiReg.Index, -2, 1);
+							else
+								CurrFunc.Instructions.Add(Instruction.OP.TESTSET, DestReg.Index, LogiReg.Index, 1);
 							CurrFunc.Instructions.Add(Instruction.OP.JMP, 0, 0);
 							SetBranchSrcJmp(true,1);
-						}					
+						}
 					} else if(NextOp == null && DestReg != null) {
 						// MOV DestReg  LogiReg		
 						EmitAssignOp(DestReg, LogiReg);
