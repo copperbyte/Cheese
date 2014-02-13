@@ -3,6 +3,7 @@ using System;
 using System.IO;
 
 
+
 namespace Cheese.Machine
 {
 
@@ -21,7 +22,7 @@ namespace Cheese.Machine
 			}
 
 			Env.SystemOut.WriteLine();
-
+			Env.SystemOut.Flush();
 			// Ignoring Rets
 
 			return;
@@ -34,6 +35,30 @@ namespace Cheese.Machine
 			if(Stack.Top >= 1) {
 				KeyArg = Stack[1];
 			}
+
+			bool UseNext = false;
+			foreach(var Curr in TableArg) {
+				if(KeyArg == LuaNil.Nil) {
+					Stack[-1] = Curr.Key;
+					Stack[0] = Curr.Value;
+					return;
+				}
+
+
+
+				if(Curr.Key.Equals(KeyArg)) {
+					UseNext = true;
+					continue;
+				}
+
+				if(UseNext) {
+					Stack[-1] = Curr.Key;
+					Stack[0] = Curr.Value;
+					return;
+				}	
+			}
+
+			/*
 
 			var Enumerable = TableArg.EnumerableTable;
 
@@ -87,6 +112,7 @@ namespace Cheese.Machine
 					} 
 				} 
 			}
+			*/
 
 			Stack[-1] = LuaNil.Nil;
 			return;
@@ -432,6 +458,56 @@ namespace Cheese.Machine
 			return;
 		}
 
+		internal static void Random(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			if(ArgC == 1) {
+				Stack[-1] = new LuaNumber(Env.RandomSource.NextDouble());
+				return;
+			} else {
+				LuaValue Param = Stack[0];
+				int VI1 = 0, VI2 = 0;
+				if(Param is LuaInteger) {
+					VI1 = (int)(Param as LuaInteger).Integer;
+				} else if(Param is LuaNumber) {
+					VI1 = (int)(Param as LuaNumber).Number;
+				} else {
+					Stack[-1] = LuaNil.Nil;
+					return;
+				}
+				if(ArgC == 3) {
+					LuaValue Param2 = Stack[1];
+					if(Param2 is LuaInteger) {
+						VI2 = (int)(Param2 as LuaInteger).Integer;
+					} else if(Param2 is LuaNumber) {
+						VI2 = (int)(Param2 as LuaNumber).Number;
+					} else {
+						Stack[-1] = LuaNil.Nil;
+						return;
+					}
+				}
+				if(ArgC == 2)
+					Stack[-1] = new LuaNumber(Env.RandomSource.Next(VI1) + 1);
+				else if(ArgC == 3)
+					Stack[-1] = new LuaNumber(Env.RandomSource.Next(VI1, VI2+1));
+				return;
+			}
+		}
+
+		internal static void RandomSeed(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Param = Stack[0];
+			double VD = 0.0;
+			if(Param is LuaInteger) {
+				VD = (double)(Param as LuaInteger).Integer;
+			} else if(Param is LuaNumber) {
+				VD = (Param as LuaNumber).Number;
+			} else {
+				Stack[-1] = LuaNil.Nil;
+				return;
+			}
+			Stack[-1] = LuaNil.Nil;
+			Env.RandomSource = new Random((int)VD);
+			return;
+		}
+
 		internal static void Sin(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
 			LuaValue Param = Stack[0];
 			double VD = 0.0;
@@ -533,8 +609,8 @@ namespace Cheese.Machine
 			LMath[new LuaString("pi")] = new LuaNumber(Math.PI);
 			LMath[new LuaString("pow")] = new LuaSysDelegate(MathLib.Pow);
 			LMath[new LuaString("rad")] = new LuaSysDelegate(MathLib.Rad);
-			// random
-			// randomseed
+			LMath[new LuaString("random")] = new LuaSysDelegate(MathLib.Random);
+			LMath[new LuaString("randomseed")] = new LuaSysDelegate(MathLib.RandomSeed);
 			LMath[new LuaString("sin")] = new LuaSysDelegate(MathLib.Sin);
 			LMath[new LuaString("sinh")] = new LuaSysDelegate(MathLib.Sinh);
 			LMath[new LuaString("sqrt")] = new LuaSysDelegate(MathLib.Sqrt);
@@ -551,6 +627,8 @@ namespace Cheese.Machine
 		internal Machine Machine;
 
 		internal TextWriter SystemOut;
+
+		internal Random RandomSource;
 
 		// Globals?
 		// Has to be a LuaTable so it can be used in Lua code by "_G"
@@ -569,6 +647,8 @@ namespace Cheese.Machine
 			m_Globals = new LuaTable();
 
 			SystemOut = Console.Out;
+
+			RandomSource = new Random();
 
 			InitSystemFunctions();
 		}
