@@ -471,7 +471,7 @@ namespace NUnitTests
 		public void ForIterPairsLoopTest()
 		{
 			string Code = @"
-				tbl = { [a]=1, [b]=2, [c]=3}
+				tbl = { ['a']=1, ['b']=2, ['c']=3}
 				cpy = {}
 				for key, value in pairs(tbl) do
 					cpy[key] = (cpy[key] or 0) + value;
@@ -503,7 +503,7 @@ namespace NUnitTests
 		}
 
 		[Test()]
-		public void AssignFuncResultTest()
+		public void RandomResultTest()
 		{
 			string Code = @"
                 function dice(size)
@@ -514,15 +514,24 @@ namespace NUnitTests
 					local first = dice(20);
 					local second = dice(20);
 					
-					local r = first + second;
+					r = first + second;
 					print(first, second, r);
 				end
 
 				testfunc();	";
 
-			string Expected = "1\r\n";
+			Machine.LuaEnvironment LuaEnv = new Machine.LuaEnvironment();
+			StringWriter LocalOut = new StringWriter();
+			LuaEnv.SetOutput(LocalOut);
 
-			ConsoleCompareTest(Code, Expected);
+			LuaEnv.Execute(Code);
+
+			LuaValue R = LuaEnv.GetGlobalValue("r");
+
+
+			Assert.True(R is LuaInteger);
+			Assert.True((R as LuaInteger).Integer >= 0);
+			Assert.True((R as LuaInteger).Integer <= 40);
 		}
 
 

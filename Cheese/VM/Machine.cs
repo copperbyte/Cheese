@@ -394,6 +394,8 @@ namespace Cheese.Machine
 					SV = GetRK(CurrOp.C, CurrOp.rkC);
 
 					if(FV is LuaInteger && SV is LuaInteger) {
+						IntegerMath(CurrOp, FV as LuaInteger, SV as LuaInteger);
+						/*
 						LuaInteger FI = FV as LuaInteger, SI = SV as LuaInteger;
 
 						long lR = default(long);
@@ -418,9 +420,12 @@ namespace Cheese.Machine
 							break;
 						}
 						Stack[CurrOp.A] = new LuaInteger(lR);
+						*/
 						continue;
 					} 
 					else {
+						DoubleMath(CurrOp, FV, SV);
+						/*
 						double FD = 0.0, SD = 0.0;
 						if(FV is LuaInteger)
 							FD = (double)(FV as LuaInteger).Integer;
@@ -453,6 +458,7 @@ namespace Cheese.Machine
 							break;
 						}
 						Stack[CurrOp.A] = new LuaNumber(dR);
+							*/
 						continue;
 					}
 				}
@@ -933,10 +939,7 @@ namespace Cheese.Machine
 						LuaValue ReturnValue = null;
 						ReturnValue = FuncDelegate.Call(Environment, Stack, CurrOp.B, CurrOp.C);
 						ProgramCounter = Stack.PopFrame(CurrOp.C);
-
-						if(CurrOp.C == 0) {
-							; // Handle Var Returns
-						} 
+						// No retturn shuffling, all in place
 					}
 					else if(FuncValue is LuaClosure) {
 						LuaClosure ClosureValue = FuncValue as LuaClosure;
@@ -971,7 +974,12 @@ namespace Cheese.Machine
 				case Instruction.OP.RETURN: {
 
 					if(CurrOp.B == 0) {
-						; // var arg
+						int si = -1;
+						for(int ri = CurrOp.A; ri <= Stack.Top; ri++) {
+							Stack[si] = Stack[ri]; 
+								Console.WriteLine("Vararg Returning: {0}  {1}  {2}", ri, si, Stack[ri].ToString());
+							si++;
+						}
 					} else if(CurrOp.B == 1) {
 						; // no return
 					} else if(CurrOp.B >= 2) {
@@ -1003,6 +1011,66 @@ namespace Cheese.Machine
 				return Stack.Func.ConstantTable[Index];
 			else 
 				return Stack[Index];
+		}
+
+		private void IntegerMath(Instruction CurrOp, LuaInteger FI, LuaInteger SI) {
+			long lR = default(long);
+			switch(CurrOp.Code) { 
+			case Instruction.OP.ADD:
+				lR = (FI.Integer + SI.Integer);
+				break;
+			case Instruction.OP.SUB:
+				lR = (FI.Integer - SI.Integer);
+				break;
+			case Instruction.OP.MUL:
+				lR = (FI.Integer * SI.Integer);
+				break;
+			case Instruction.OP.DIV:
+				lR = (FI.Integer / SI.Integer);
+				break;
+			case Instruction.OP.MOD:
+				lR = (FI.Integer % SI.Integer);
+				break;
+			case Instruction.OP.POW:
+				lR = (long)(Math.Pow(FI.Integer, SI.Integer));
+				break;
+			}
+			Stack[CurrOp.A] = new LuaInteger(lR);
+		}
+
+		private void DoubleMath(Instruction CurrOp, LuaValue FV, LuaValue SV) {
+			double FD = 0.0, SD = 0.0;
+			if(FV is LuaInteger)
+				FD = (double)(FV as LuaInteger).Integer;
+			else if(FV is LuaNumber)
+				FD = (FV as LuaNumber).Number;
+			if(SV is LuaInteger)
+				SD = (double)(SV as LuaInteger).Integer;
+			else if(SV is LuaNumber)
+				SD = (SV as LuaNumber).Number;
+
+			double dR = default(double);
+			switch(CurrOp.Code) { 
+			case Instruction.OP.ADD:
+				dR = (FD + SD);
+				break;
+			case Instruction.OP.SUB:
+				dR = (FD - SD);
+				break;
+			case Instruction.OP.MUL:
+				dR = (FD * SD);
+				break;
+			case Instruction.OP.DIV:
+				dR = (FD / SD);
+				break;
+			case Instruction.OP.MOD:
+				dR = (FD % SD);
+				break;
+			case Instruction.OP.POW:
+				dR = (Math.Pow(FD, SD));
+				break;
+			}
+			Stack[CurrOp.A] = new LuaNumber(dR);
 		}
 	}
 

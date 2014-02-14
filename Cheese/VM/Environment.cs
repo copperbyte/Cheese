@@ -485,9 +485,9 @@ namespace Cheese.Machine
 					}
 				}
 				if(ArgC == 2)
-					Stack[-1] = new LuaNumber(Env.RandomSource.Next(VI1) + 1);
+					Stack[-1] = new LuaInteger(Env.RandomSource.Next(VI1) + 1);
 				else if(ArgC == 3)
-					Stack[-1] = new LuaNumber(Env.RandomSource.Next(VI1, VI2+1));
+					Stack[-1] = new LuaInteger(Env.RandomSource.Next(VI1, VI2+1));
 				return;
 			}
 		}
