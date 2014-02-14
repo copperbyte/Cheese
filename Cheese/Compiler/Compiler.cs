@@ -248,6 +248,7 @@ namespace Cheese
 			//}
 
 
+			//OptimizeRegisters(RootFunc);
 			// Process CompilerFunctions into MachineFunctions
 			Result.RootFunc = CompilerFuncToMachineFunc(RootFunc);
 
@@ -258,6 +259,7 @@ namespace Cheese
 
 		internal Machine.Function CompilerFuncToMachineFunc(CompilerFunction CompFunc) {
 			Machine.Function MachFunc = new Machine.Function();
+			//OptimizeRegisters(CompFunc);
 
 			MachFunc.NumParams = CompFunc.NumParams;
 			MachFunc.IsVarArg = CompFunc.IsVarArg;
@@ -290,8 +292,6 @@ namespace Cheese
 				MachFunc.FullLocalTable.Add(MachLocal);
 			}
 
-
-
 			MachFunc.Instructions = new List<Instruction>(CompFunc.Instructions);
 
 			foreach(CompilerFunction CompSub in CompFunc.SubFunctions) {
@@ -301,6 +301,405 @@ namespace Cheese
 			return MachFunc;
 		}
 
+		// FIXME: Fail.
+		#region Optimizer
+		internal void OptimizeRegisters(CompilerFunction CompFunc) {
+			List<int> Reads = new List<int>(CompFunc.MaxStackSize);
+			List<int> Writes = new List<int>(CompFunc.MaxStackSize);
+
+			// Orig-Register to Length of Block it is used to represent?
+			// Instruction number?
+			Dictionary<int, int> BlockLengths = new Dictionary<int, int>(); 
+
+			for(int i = 0; i <= CompFunc.MaxStackSize; i++) {
+				Reads.Add(0);
+				Writes.Add(99999);
+			}
+
+			for(int i = 0; i < CompFunc.NumParams; i++) {
+				Writes[i] = 0;
+			}
+
+			int InstIndex = 0;
+			int LoopTopOp = 0;
+			// Determine the read and writes
+			foreach(Instruction CurrOp in CompFunc.Instructions) {
+				Console.WriteLine("{0} : {1}", InstIndex, CurrOp.ToString());
+				switch(CurrOp.Code) {
+				case Instruction.OP.MOVE:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					break;
+				case Instruction.OP.LOADNIL:
+					for(int i = CurrOp.A; i <= CurrOp.B; i++) {
+						Writes[i] = Math.Min(Writes[i], InstIndex);
+					}
+					BlockLengths[CurrOp.A] = (CurrOp.B-CurrOp.A)+1;
+					break;
+				case Instruction.OP.LOADK:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.LOADBOOL:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.GETGLOBAL:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.SETGLOBAL:
+					Reads[CurrOp.A] = Math.Max(Reads[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.GETTABLE:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					if(!CurrOp.rkC)
+						Reads[CurrOp.C] = Math.Max(Reads[CurrOp.C], InstIndex);
+					break;
+				case Instruction.OP.SETTABLE:
+					// Writes to the table, but reads the table from the register
+					Reads[CurrOp.A] = Math.Max(Reads[CurrOp.A], InstIndex);
+					if(!CurrOp.rkB)
+						Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					if(!CurrOp.rkC)
+						Reads[CurrOp.C] = Math.Max(Reads[CurrOp.C], InstIndex);
+					break;
+				case Instruction.OP.ADD:
+				case Instruction.OP.SUB:
+				case Instruction.OP.MUL:
+				case Instruction.OP.DIV:
+				case Instruction.OP.MOD:
+				case Instruction.OP.POW:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					if(!CurrOp.rkB)
+						Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					if(!CurrOp.rkC)
+						Reads[CurrOp.C] = Math.Max(Reads[CurrOp.C], InstIndex);
+					break;
+				case Instruction.OP.UNM:
+				case Instruction.OP.NOT:
+				case Instruction.OP.LEN:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					break;
+				case Instruction.OP.CONCAT:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					for(int i = CurrOp.B; i <= CurrOp.C; i++) {
+						Reads[i] = Math.Max(Reads[i], InstIndex);
+					}
+					BlockLengths[CurrOp.B] = (CurrOp.C-CurrOp.B)+1;
+					break;
+				case Instruction.OP.JMP:
+					break;
+				case Instruction.OP.CALL:
+					// FIXME: Varargs
+					Reads[CurrOp.A] = Math.Max(Reads[CurrOp.A], InstIndex);
+					if(CurrOp.B != 1) {
+						for(int i = CurrOp.A; i <= CurrOp.A + CurrOp.B - 1; i++) {
+							Reads[i] = Math.Max(Reads[i], InstIndex);
+						}
+					}
+					if(CurrOp.C >= 2) {
+						for(int i = CurrOp.A; i <= CurrOp.A + CurrOp.C - 1; i++) {
+							Writes[i] = Math.Min(Writes[i], InstIndex);
+						}
+					}
+					BlockLengths[CurrOp.A] = CurrOp.B;
+					break;
+				case Instruction.OP.RETURN:
+					// FIXME: Varargs
+					if(CurrOp.B != 1) {
+						for(int i = CurrOp.A; i <= CurrOp.A + CurrOp.B - 2; i++) {
+							Reads[i] = Math.Max(Reads[i], InstIndex);
+						}
+						BlockLengths[CurrOp.A] = CurrOp.B-1;
+					}
+					break;
+				case Instruction.OP.TAILCALL:
+					// FIXME: Varargs
+					for(int i = CurrOp.A; i <= CurrOp.A + CurrOp.B - 1; i++) {
+						Reads[i] = Math.Max(Reads[i], InstIndex);
+					}
+					BlockLengths[CurrOp.A] = CurrOp.B;
+					break;
+				case Instruction.OP.SELF:
+					Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					Writes[CurrOp.A+1] = Math.Min(Writes[CurrOp.A+1], InstIndex);
+					if(!CurrOp.rkC)
+						Reads[CurrOp.C] = Math.Max(Reads[CurrOp.C], InstIndex);
+					Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.EQ:
+				case Instruction.OP.LT:
+				case Instruction.OP.LE:
+					if(!CurrOp.rkB)
+						Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					if(!CurrOp.rkC)
+						Reads[CurrOp.C] = Math.Max(Reads[CurrOp.C], InstIndex);
+					break;
+				case Instruction.OP.TEST:
+					Reads[CurrOp.A] = Math.Max(Reads[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.TESTSET:
+					Reads[CurrOp.B] = Math.Max(Reads[CurrOp.B], InstIndex);
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.FORPREP:
+					Reads[CurrOp.A+2] = Math.Max(Reads[CurrOp.A+2], InstIndex);
+					Reads[CurrOp.A] = Math.Max(Reads[CurrOp.A], InstIndex);
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					BlockLengths[CurrOp.A] = 3;
+					break;
+				case Instruction.OP.FORLOOP:
+					Reads[CurrOp.A+2] = Math.Max(Reads[CurrOp.A+2], InstIndex);
+					Reads[CurrOp.A] = Math.Max(Reads[CurrOp.A], InstIndex);
+					Reads[CurrOp.A+1] = Math.Max(Reads[CurrOp.A+1], InstIndex);
+					Writes[CurrOp.A+3] = Math.Min(Writes[CurrOp.A+3], InstIndex);
+					BlockLengths[CurrOp.A] = 4;
+					break;
+				case Instruction.OP.TFORLOOP:
+					Instruction JmpOp = CompFunc.Instructions[InstIndex + 1];
+					LoopTopOp = (InstIndex + JmpOp.B) + 2;
+					Reads[CurrOp.A] = Math.Max(Reads[CurrOp.A], InstIndex);
+					Reads[CurrOp.A+1] = Math.Max(Reads[CurrOp.A+1], InstIndex);
+					Reads[CurrOp.A+2] = Math.Max(Reads[CurrOp.A+2], InstIndex);
+					for(int i = CurrOp.A+3; i <= CurrOp.A+2+CurrOp.C; i++) {
+						Writes[i] = Math.Min(Writes[i], LoopTopOp);//InstIndex);
+					}
+					Reads[CurrOp.A+3] = Math.Max(Reads[CurrOp.A+3], InstIndex);
+					Writes[CurrOp.A+2] = Math.Min(Writes[CurrOp.A+2], InstIndex);
+					BlockLengths[CurrOp.A] = 3 + CurrOp.C;
+					break;
+				case Instruction.OP.NEWTABLE:
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.SETLIST:
+					// Writes to table, reads table location from register
+					// Also, fields per flush stuff
+					Reads[CurrOp.A] = Math.Max(Reads[CurrOp.A], InstIndex);
+					for(int i = CurrOp.A; i <= CurrOp.A + CurrOp.B; i++) {
+						Reads[i] = Math.Max(Reads[i], InstIndex);
+					}
+					break;
+				case Instruction.OP.CLOSURE:
+					// Also, closure stuff
+					Writes[CurrOp.A] = Math.Min(Writes[CurrOp.A], InstIndex);
+					break;
+				case Instruction.OP.CLOSE:
+					for(int i = 0; i <= CurrOp.A; i++) {
+						Reads[i] = Math.Max(Reads[i], InstIndex);
+					}
+					break;
+				}
+				InstIndex++;
+			}
+			for(int i = 0; i < CompFunc.MaxStackSize; i++) {
+				int B = 1;
+				if(BlockLengths.ContainsKey(i))
+					B = BlockLengths[i];
+				Console.WriteLine("S {0}  R {1}  W {2}  B {3}", i, Reads[i], Writes[i], B); 
+			}
+
+			SortedSet<int> UsedRegs = new SortedSet<int>();
+			Dictionary<int, int> RegisterMap = new Dictionary<int, int>();
+
+			InstIndex = 0;
+			// Plug in the new values
+			foreach(Instruction CurrOp in CompFunc.Instructions) {
+
+				// Clear out the old used before claiming news, 
+				// for cases like A = A+B, and A can be recycles
+				for(int i = 0; i < CompFunc.MaxStackSize; i++) {
+					if(InstIndex == Reads[i]) {
+						if(RegisterMap.ContainsKey(i)) {
+							if(UsedRegs.Contains(RegisterMap[i]))
+								UsedRegs.Remove(RegisterMap[i]);
+						}
+					}
+				}
+
+				// Fill in new maps
+				for(int i = 0; i < CompFunc.MaxStackSize; i++) {
+					if(InstIndex == Writes[i]) {
+						if(BlockLengths.ContainsKey(i)) {
+							int Free = 0;
+							int Length = BlockLengths[i];
+							bool Found = false;
+							while(!Found) {
+								while(UsedRegs.Contains(Free)) {
+									Free++;
+								}
+								Found = true;
+								for(int j = 0; j < Length; j++) {
+									if(UsedRegs.Contains(Free + j)) {
+										Free = Free + j + 1;
+										Found = false;
+										Console.WriteLine("LengthFindBreak: {0} for {1} tried {2} tro {3}", i, Length, Free, j); 
+										break;
+									}
+								}
+							}
+							for(int j = 0; j < Length; j++) {
+								UsedRegs.Add(Free + j);
+								RegisterMap[i + j] = Free + j;
+							}	
+						} else {
+							if(!RegisterMap.ContainsKey(i)) {
+								int Free = 0;
+								while(UsedRegs.Contains(Free)) {
+									Free++;
+								}
+								UsedRegs.Add(Free);
+								RegisterMap[i] = Free;
+							}
+						}
+					}
+				}
+				Console.Write("I:{0} ", InstIndex);
+				foreach(var MapPair in RegisterMap) {
+					Console.Write(" ({0},{1})", MapPair.Key, MapPair.Value);
+				}
+				Console.WriteLine();
+
+				int Min = 0, Max = 0;
+				// Mod OPs
+				switch(CurrOp.Code) {
+				case Instruction.OP.MOVE:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					CurrOp.B = RegisterMap[CurrOp.B];
+					break;
+				case Instruction.OP.LOADNIL:
+					Min = Math.Min(RegisterMap[CurrOp.A], RegisterMap[CurrOp.B]);
+					Max = Math.Max(RegisterMap[CurrOp.A], RegisterMap[CurrOp.B]);
+					CurrOp.A = Min;
+					CurrOp.B = Max;
+					break;
+				case Instruction.OP.LOADK:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.LOADBOOL:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.GETGLOBAL:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.SETGLOBAL:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.GETTABLE:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					CurrOp.B = RegisterMap[CurrOp.B];
+					if(!CurrOp.rkC)
+						CurrOp.C = RegisterMap[CurrOp.C];
+					break;
+				case Instruction.OP.SETTABLE:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					if(!CurrOp.rkB)
+						CurrOp.B = RegisterMap[CurrOp.B];
+					if(!CurrOp.rkC)
+						CurrOp.C = RegisterMap[CurrOp.C];
+					break;
+				case Instruction.OP.ADD:
+				case Instruction.OP.SUB:
+				case Instruction.OP.MUL:
+				case Instruction.OP.DIV:
+				case Instruction.OP.MOD:
+				case Instruction.OP.POW:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					if(!CurrOp.rkB)
+						CurrOp.B = RegisterMap[CurrOp.B];
+					if(!CurrOp.rkC)
+						CurrOp.C = RegisterMap[CurrOp.C];
+					break;
+				case Instruction.OP.UNM:
+				case Instruction.OP.NOT:
+				case Instruction.OP.LEN:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					CurrOp.B = RegisterMap[CurrOp.B];
+					break;
+				case Instruction.OP.CONCAT:
+					Min = Math.Min(RegisterMap[CurrOp.B], RegisterMap[CurrOp.C]);
+					Max = Math.Max(RegisterMap[CurrOp.B], RegisterMap[CurrOp.C]);
+					CurrOp.A = RegisterMap[CurrOp.A];
+					CurrOp.B = Min;
+					CurrOp.C = Max;
+					break;
+				case Instruction.OP.JMP:
+					break;
+				case Instruction.OP.CALL:
+					// FIXME: Varargs
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.RETURN:
+					// FIXME: Varargs
+					if(CurrOp.A != 0 && CurrOp.B != 1) {
+						CurrOp.A = RegisterMap[CurrOp.A];
+					}
+					break;
+				case Instruction.OP.TAILCALL:
+					// FIXME: Varargs
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.SELF:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					CurrOp.B = RegisterMap[CurrOp.B];
+					if(!CurrOp.rkC)
+						CurrOp.C = RegisterMap[CurrOp.C];
+					break;
+				case Instruction.OP.EQ:
+				case Instruction.OP.LT:
+				case Instruction.OP.LE:
+					if(!CurrOp.rkB)
+						CurrOp.B = RegisterMap[CurrOp.B];
+					if(!CurrOp.rkC)
+						CurrOp.C = RegisterMap[CurrOp.C];
+					break;
+				case Instruction.OP.TEST:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.TESTSET:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					CurrOp.B = RegisterMap[CurrOp.B];
+					break;
+				case Instruction.OP.FORPREP:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.FORLOOP:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.TFORLOOP:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.NEWTABLE:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.SETLIST:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.CLOSURE:
+					// Also, closure stuff
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				case Instruction.OP.CLOSE:
+					CurrOp.A = RegisterMap[CurrOp.A];
+					break;
+				}
+
+				// Clear Out old maps
+				for(int i = 0; i < CompFunc.MaxStackSize; i++) {
+					if(InstIndex == Reads[i]) {
+						RegisterMap.Remove(i);
+					}
+				}
+				InstIndex++;
+			}
+
+
+			foreach(CompilerFunction CompSub in CompFunc.SubFunctions) {
+				OptimizeRegisters(CompSub);
+			}
+		}
+
+		#endregion
 
 		#region Registers
 
@@ -338,6 +737,10 @@ namespace Cheese
 
 		void FreeRegister(int Reg) {
 			CurrFunc.UsedRegs.Remove(Reg);
+		}
+
+		void FreeAllRegisters() {
+			CurrFunc.UsedRegs.Clear();
 		}
 
 		bool IsConsecutiveRegisterFree(int First, int Count) {
@@ -546,13 +949,16 @@ namespace Cheese
 			CompilerFunction.LocalEntry NewEntry = new CompilerFunction.LocalEntry();
 			//NewEntry.Value.Index = CurrFunc.LocalTable.Count;
 			NewEntry.Index = LocalCount;
-			//NewEntry.Value.Loc = CompilerValue.ELoc.LOCAL;
+			// PART OF OptimizeRegisters
+			//NewEntry.Index = GetFreeRegister();
 			NewEntry.Name = Name;
 			NewEntry.StartPC = CurrFunc.Instructions.Count - 1;
 			List<CompilerFunction.LocalEntry> TopScope = CurrFunc.LocalScopes[CurrFunc.LocalScopes.Count - 1];
 			TopScope.Add(NewEntry);
 			//CurrFunc.LocalTable.Add(NewEntry);
-			return new CompilerValue(NewEntry.Index, CompilerValue.ELoc.LOCAL);
+			CompilerValue RetVal = new CompilerValue(NewEntry.Index, CompilerValue.ELoc.LOCAL);
+			//ClaimRegister(RetVal);
+			return RetVal;
 			//return NewEntry.Value;
 		}
 
@@ -866,7 +1272,7 @@ namespace Cheese
 				else if(Statement.Type == ParseNode.EType.RETURN_STAT) 
 					CompileReturnStmt(Statement);
 
-				CurrFunc.UsedRegs.Clear();
+				FreeAllRegisters();
 				foreach(List<CompilerFunction.LocalEntry> Scope in CurrFunc.LocalScopes) {
 					foreach(CompilerFunction.LocalEntry Entry in Scope) {
 						CurrFunc.UsedRegs.Add(Entry.Index);
