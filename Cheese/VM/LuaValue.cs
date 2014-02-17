@@ -156,6 +156,29 @@ namespace Cheese
 	// Special type that isn't Table to store Argument lists?
 	// Is that just List<LuaValue> ?
 
+	public class LuaUserData : LuaValue {
+
+		public Object UserData {
+			get;
+			private set;
+		}
+
+		public LuaUserData(Object Value) {
+			UserData = Value;
+		}
+
+		public override string ToString() {
+			return UserData.ToString();
+		}
+
+		public override bool Equals(Object Other) {
+			return UserData.Equals(Other);
+		}
+		public override int GetHashCode() {
+			return UserData.GetHashCode();
+		}
+	}
+
 	// LuaClosure , a Function and an UpVal storage wrapped
 	public class LuaClosure : LuaValue {
 
@@ -209,6 +232,8 @@ namespace Cheese
 			return LuaNil.Nil;
 		}
 	}
+
+
 
 }
 
