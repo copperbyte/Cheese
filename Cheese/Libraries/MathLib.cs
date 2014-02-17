@@ -312,8 +312,13 @@ namespace Cheese.Machine
 		}
 
 		internal static void Random(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+
+			LuaValue SrcValue = (Env.GetGlobalValue("math") as LuaTable)["__randomsource"];
+			LuaUserData SrcUser = SrcValue as LuaUserData;
+			Random Src = SrcUser.UserData as Random;
+
 			if(ArgC == 1) {
-				Stack[-1] = new LuaNumber(Env.RandomSource.NextDouble());
+				Stack[-1] = new LuaNumber(Src.NextDouble());
 				return;
 			} else {
 				LuaValue Param = Stack[0];
@@ -338,9 +343,9 @@ namespace Cheese.Machine
 					}
 				}
 				if(ArgC == 2)
-					Stack[-1] = new LuaInteger(Env.RandomSource.Next(VI1) + 1);
+					Stack[-1] = new LuaInteger(Src.Next(VI1) + 1);
 				else if(ArgC == 3)
-					Stack[-1] = new LuaInteger(Env.RandomSource.Next(VI1, VI2+1));
+					Stack[-1] = new LuaInteger(Src.Next(VI1, VI2+1));
 				return;
 			}
 		}
@@ -357,7 +362,12 @@ namespace Cheese.Machine
 				return;
 			}
 			Stack[-1] = LuaNil.Nil;
-			Env.RandomSource = new Random((int)VD);
+
+			Random NewSrc = new Random((int)VD);
+			LuaUserData NewSrcUser = new LuaUserData(NewSrc);
+
+			(Env.GetGlobalValue("math") as LuaTable)["__randomsource"] = NewSrcUser;
+			//Env.RandomSource = new Random((int)VD);
 			return;
 		}
 
@@ -469,6 +479,12 @@ namespace Cheese.Machine
 			LMath[new LuaString("sqrt")] = new LuaSysDelegate(MathLib.Sqrt);
 			LMath[new LuaString("tan")] = new LuaSysDelegate(MathLib.Tan);
 			LMath[new LuaString("tanh")] = new LuaSysDelegate(MathLib.Tanh);
+
+			{
+				Random NewSrc = new Random((int)System.DateTime.Now.Ticks);
+				LuaUserData NewSrcUser = new LuaUserData(NewSrc);
+				LMath["__randomsource"] = NewSrcUser;
+			}
 
 			Dest[new LuaString("math")] = LMath;
 		}
