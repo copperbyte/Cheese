@@ -131,6 +131,12 @@ namespace Cheese
 	class CompilerFunction {
 
 		internal class ConstEntry {
+			internal enum EType {
+				NUMBER_CONST,
+				INTEGER_CONST,
+				STRING_CONST
+			}
+			internal EType Type;
 			internal int Index;
 			internal double NumberVal;
 			internal long IntegerVal;
@@ -268,11 +274,11 @@ namespace Cheese
 			foreach(CompilerFunction.ConstEntry Const in CompFunc.ConstantTable) {
 				LuaValue ConstValue = null;
 
-				if(Const.StringVal != null) {
+				if(Const.Type == CompilerFunction.ConstEntry.EType.STRING_CONST) {
 					ConstValue = new LuaString(Const.StringVal);
-				} else if(Const.NumberVal != default(double)) {
+				} else if(Const.Type == CompilerFunction.ConstEntry.EType.NUMBER_CONST) {
 					ConstValue = new LuaNumber(Const.NumberVal);
-				} else if(Const.IntegerVal != default(long)) {
+				} else if(Const.Type == CompilerFunction.ConstEntry.EType.INTEGER_CONST) {
 					ConstValue = new LuaInteger(Const.IntegerVal);
 				} else {
 					ConstValue = new LuaInteger(0);
@@ -835,12 +841,14 @@ namespace Cheese
 
 		CompilerValue GetConstIndex(string ConstValue) {
 			foreach(CompilerFunction.ConstEntry Entry in CurrFunc.ConstantTable) {
-				if(Entry.StringVal != null && Entry.StringVal == ConstValue) {
+				if(Entry.Type == CompilerFunction.ConstEntry.EType.STRING_CONST && 
+					Entry.StringVal == ConstValue) {
 					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
 					//return Entry.Value;
 				}
 			}
 			CompilerFunction.ConstEntry NewEntry = new CompilerFunction.ConstEntry();
+			NewEntry.Type = CompilerFunction.ConstEntry.EType.STRING_CONST;
 			NewEntry.Index = CurrFunc.ConstantTable.Count;
 			//NewEntry.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.StringVal = ConstValue;
@@ -850,12 +858,14 @@ namespace Cheese
 
 		CompilerValue GetConstIndex(double ConstValue) {
 			foreach(CompilerFunction.ConstEntry Entry in CurrFunc.ConstantTable) {
-				if(Entry.StringVal == null && Entry.NumberVal == ConstValue) {
+				if(Entry.Type == CompilerFunction.ConstEntry.EType.NUMBER_CONST && 
+					Entry.NumberVal == ConstValue) {
 					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
 					//return Entry.Value;
 				}
 			}
 			CompilerFunction.ConstEntry NewEntry = new CompilerFunction.ConstEntry();
+			NewEntry.Type = CompilerFunction.ConstEntry.EType.NUMBER_CONST;
 			NewEntry.Index = CurrFunc.ConstantTable.Count;
 			//NewEntry.Value.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.NumberVal = ConstValue;
@@ -866,12 +876,14 @@ namespace Cheese
 
 		CompilerValue GetConstIndex(long ConstValue) {
 			foreach(CompilerFunction.ConstEntry Entry in CurrFunc.ConstantTable) {
-				if(Entry.StringVal == null && Entry.IntegerVal == ConstValue) {
+				if(Entry.Type == CompilerFunction.ConstEntry.EType.INTEGER_CONST && 
+					Entry.IntegerVal == ConstValue) {
 					return new CompilerValue(Entry.Index, CompilerValue.ELoc.CONSTANT);
 					//return Entry.Value;
 				}
 			}
 			CompilerFunction.ConstEntry NewEntry = new CompilerFunction.ConstEntry();
+			NewEntry.Type = CompilerFunction.ConstEntry.EType.INTEGER_CONST;
 			NewEntry.Index = CurrFunc.ConstantTable.Count;
 			//NewEntry.Value.Loc = Cheese.CompilerValue.ELoc.CONSTANT;
 			NewEntry.IntegerVal = ConstValue;

@@ -10,6 +10,10 @@ namespace Cheese.Machine
 		internal int Index;
 		internal string Name;
 		internal int StartPC, EndPC;
+		public override string ToString ()
+		{
+			return string.Format ("{0} : {1} ({2}-{3})", Name, Index, StartPC, EndPC);
+		}
 	}
 
 	class UpvalEntry {

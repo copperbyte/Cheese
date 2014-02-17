@@ -977,7 +977,6 @@ namespace Cheese.Machine
 						int si = -1;
 						for(int ri = CurrOp.A; ri <= Stack.Top; ri++) {
 							Stack[si] = Stack[ri]; 
-								Console.WriteLine("Vararg Returning: {0}  {1}  {2}", ri, si, Stack[ri].ToString());
 							si++;
 						}
 					} else if(CurrOp.B == 1) {
