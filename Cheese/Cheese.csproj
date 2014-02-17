@@ -44,11 +44,14 @@
     <Compile Include="VM\Instruction.cs" />
     <Compile Include="VM\LuaValue.cs" />
     <Compile Include="VM\LuaTable.cs" />
+    <Compile Include="Libraries\BasicLib.cs" />
+    <Compile Include="Libraries\MathLib.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <Folder Include="Syntax\" />
     <Folder Include="Compiler\" />
     <Folder Include="VM\" />
+    <Folder Include="Libraries\" />
   </ItemGroup>
 </Project>
