@@ -652,6 +652,26 @@ namespace NUnitTests
 
 		#region TableLib
 		[Test()]
+		public void TableConcatTest()
+		{
+			string Code = @"
+				object = { ""foo"", ""bar"", ""baz"" };
+
+				local ts = table.concat(object, ""!"");
+				print(ts); 
+				ts = table.concat(object, ""$"", 2);
+				print(ts); 
+				ts = table.concat(object, ""@"", 1, 2);
+				print(ts); 
+				";
+
+			string Expected = "foo!bar!baz\r\nbar$baz\r\nfoo@bar\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+
+		[Test()]
 		public void TableInsertTest()
 		{
 			string Code = @"
@@ -673,6 +693,25 @@ namespace NUnitTests
 
 			ConsoleCompareTest(Code, Expected);
 		}
+
+		[Test()]
+		public void TableMaxNTest()
+		{
+			string Code = @"
+				object = { ""foo"", ""bar"", ""baz"", ""fizz"", ""buzz"" };				
+				local maxV = table.maxn(object);
+				print(maxV); 
+
+				object[49.37] = ""what"";
+				maxV = table.maxn(object);
+				print(maxV); 
+				";
+
+			string Expected = "5\r\n49.37\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
 
 		[Test()]
 		public void TableRemoveTest()
