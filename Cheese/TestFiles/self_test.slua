@@ -1,0 +1,28 @@
+--Super Simple Test Three
+
+object = {};
+object.value = 5;
+
+object.mul = function(self, other) 
+    self.value = self.value * other;
+    return self.value;
+end
+
+function object:add(other) 
+    object.value = object.value + other;
+    return object.value;
+end
+
+object.sub = function(self, other)
+    self.value = self.value - other;
+    return self.value;
+end
+
+
+
+object:mul(3);
+object:add(4);
+object:sub(2);
+print(object.value);
+
+

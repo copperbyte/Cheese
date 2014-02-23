@@ -46,6 +46,7 @@
     <Compile Include="VM\LuaTable.cs" />
     <Compile Include="Libraries\BasicLib.cs" />
     <Compile Include="Libraries\MathLib.cs" />
+    <Compile Include="Libraries\TableLib.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>

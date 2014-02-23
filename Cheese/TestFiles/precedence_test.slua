@@ -1,0 +1,10 @@
+--Super Simple Test Operator Precedence 
+
+x = 2 + 3 * 4 + 5;
+
+y = 2 + 3 ^ 2 * 3 + 4;
+
+z = -4^2;
+
+print(x, y, z);
+

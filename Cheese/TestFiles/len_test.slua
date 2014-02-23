@@ -1,0 +1,9 @@
+--Super Simple Test Len
+
+str = "somestr";
+lstr = #str;
+tbl = { "a", "b", "c", ["a"]=1, ["b"]=2, ["c"]=3 };
+ltbl = #tbl;
+print(lstr,ltbl);
+
+

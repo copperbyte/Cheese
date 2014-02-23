@@ -649,6 +649,56 @@ namespace NUnitTests
 
 			Assert.AreEqual(2, (NextGen["generation"] as LuaInteger).Integer);
 		}
+
+		#region TableLib
+		[Test()]
+		public void TableInsertTest()
+		{
+			string Code = @"
+				object = { ""foo"", ""bar"", ""baz"" };
+
+				table.insert(object, ""fizz"");
+				table.insert(object, 2, ""buzz"");
+
+				ts = '';
+				for k,v in ipairs(object) do
+				  ts = ts .. v;
+				end
+
+				print(ts); 
+
+				";
+
+			string Expected = "foobuzzbarbazfizz\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void TableRemoveTest()
+		{
+			string Code = @"
+				object = { ""foo"", ""bar"", ""baz"", ""fizz"", ""buzz"" };
+
+				table.remove(object);
+				table.remove(object, 3);
+
+				ts = '';
+				for k,v in ipairs(object) do
+				  ts = ts .. v;
+				end
+
+				print(ts); 
+
+				";
+
+			string Expected = "foobarfizz\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		#endregion
+
 	}
 
 	[TestFixture()]
@@ -737,6 +787,9 @@ namespace NUnitTests
 			Assert.AreEqual("1:fighter;", LocalOut.ToString());
 
 		}
+	
+	
+
 	}
 }
 

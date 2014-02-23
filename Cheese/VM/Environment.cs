@@ -109,7 +109,9 @@ namespace Cheese.Machine
 		////
 		private void InitSystemFunctions() {
 			BasicLib.LoadInto(this, m_Globals);
+			TableLib.LoadInto(this, m_Globals);
 			MathLib.LoadInto(this, m_Globals);
+
 		}
 	}
 }

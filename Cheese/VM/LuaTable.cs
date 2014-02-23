@@ -12,15 +12,14 @@ namespace Cheese
 
 		//public static readonly LuaTable Default = new LuaTable();
 
-		private List<LuaValue> Array;
+		private List<LuaValue> Array; // ordered LuaValue array
+		private Trie<LuaValue> Trie; // String to LuaValue
 		// That the index is a LuaValue makes me unhappy, it means wrapping
 		// everything. Inside the machine everything will be wrapped anyway,
 		// but the interface out won't all be wrapped.
 		// Make Key an Int, and do the calls to GetHashCode myself? 
 		private Dictionary<LuaValue, LuaValue> HashMap;
-
-		// Make a side-table for
-		// Dictionary<string, LuaValue> StringMap ?
+	
 
 		public LuaTable() {
 			;
@@ -33,98 +32,46 @@ namespace Cheese
 					Array.Add(LuaNil.Nil);
 				}
 			}
-			if(HashSize > 0)
+			if(HashSize > 0) {
+				Trie = new Trie<LuaValue>();
 				HashMap = new Dictionary<LuaValue, LuaValue>(HashSize);
+			}
 		}
 
 		public override string ToString() {
 			return "lua table tostring";
 		}
 
+		#region indexers
 		// Lua is 1-based, and so is this.
 		public LuaValue this[long Index]
 		{
 			get { 
-				if(Array == null) 
-					return LuaNil.Nil;
-				else if(Array.Count <= Index-1)
-					return LuaNil.Nil;
-				else
-					return Array[(int)Index-1]; }
+				return Get(Index);
+			}
 			set { Array[(int)Index-1] = value; }
 		}
 
 		public LuaValue this[LuaValue Key]
 		{
 			get { 
-
-				if(Key is LuaNumber) {
-					double NumVal = (Key as LuaNumber).Number;
-					if(NumVal % 1 == 0) {
-						long IntVal = (long)NumVal;
-						if(Array != null && Array.Count >= IntVal)
-							return this[IntVal];
-					}
-				}
-
-				if(Key is LuaInteger) {
-					if(Array != null && Array.Count >= (Key as LuaInteger).Integer)
-						return this[(Key as LuaInteger).Integer];
-				}
-
-				if(HashMap == null)
-					return LuaNil.Nil;
-				if(HashMap.ContainsKey(Key))
-					return HashMap[Key];
-				else
-					return LuaNil.Nil;
+				return Get(Key);
 			}
 			set { 
-
-				if(Key is LuaNumber) {
-					double NumVal = (Key as LuaNumber).Number;
-					if(NumVal % 1 == 0) {
-						long IntVal = (long)NumVal;
-						this[IntVal] = value;
-						return;
-					}
-				}
-
-				if(HashMap == null)
-					HashMap = new Dictionary<LuaValue, LuaValue>();
-				if(Key == LuaNil.Nil || value == LuaNil.Nil)
-					HashMap.Remove(Key);
-				else
-					HashMap[Key] = value; 
+				Add(Key, value);
 			}
 		}
 
 		public LuaValue this[string Key]
 		{
 			get { 
-				if(HashMap == null)
-					return LuaNil.Nil;
-
-				LuaString LKey = new LuaString(Key);
-				if(HashMap.ContainsKey(LKey)) {
-					return HashMap[LKey];
-				}
-				else
-					return LuaNil.Nil;
+				return Get(Key);
 			}
 			set { 
-				if(HashMap == null)
-					HashMap = new Dictionary<LuaValue, LuaValue>();
-				if(Key == null)
-					return;
-				LuaString LKey = new LuaString(Key);
-				if(value == LuaNil.Nil)
-					HashMap.Remove(LKey);
-				else
-					HashMap[LKey] = value; 
+				Add(Key, value);
 			}
 		}
-
+		#endregion // indexers
 
 		public int Length {
 			get {
@@ -136,18 +83,27 @@ namespace Cheese
 
 		public int Count {
 			get {
+				int R = 0;
 				if(HashMap == null)
-					return 0;
-				return HashMap.Count;
+					;
+				else
+					R += HashMap.Count;
+				if(Trie == null)
+					;
+				else
+					R += Trie.Count;
+				return R;
 			}
 		}
 
 
 		public bool Empty {
 			get {
-				if(Array == null && HashMap == null)
+				if(Array == null && Trie == null && HashMap == null)
 					return true;
 				if(Array != null && Array.Count > 0)
+					return false;
+				if(Trie != null && Trie.Count > 0)
 					return false;
 				if(HashMap != null && HashMap.Count > 0)
 					return false;
@@ -155,7 +111,7 @@ namespace Cheese
 			}
 		}
 
-
+		/*
 		public IEnumerable<LuaValue> EnumerableArray
 		{
 			get { return this.Array; }
@@ -165,7 +121,7 @@ namespace Cheese
 		{
 			get { return this.HashMap; }
 		}
-
+		*/
 
 		#region IEnumerable implementation
 		IEnumerator<KeyValuePair<LuaValue, LuaValue>> 
@@ -181,7 +137,7 @@ namespace Cheese
 		}
 		#endregion
 
-
+		#region Add
 		public void Add(LuaValue Item) {
 			if(Array == null)
 				Array = new List<LuaValue>();
@@ -189,13 +145,78 @@ namespace Cheese
 		}
 
 		public void Add(LuaValue Key, LuaValue Value) {
+			if(Key is LuaString) {
+				Add((Key as LuaString).Text, Value);
+				return;
+			}
 			if(HashMap == null)
 				HashMap = new Dictionary<LuaValue, LuaValue>();
-			HashMap.Add(Key, Value);
+			if(Value != LuaNil.Nil && Value != null)
+				HashMap[Key]= Value;
+			else 
+				HashMap.Remove(Key);
 		}
 
+		public void Add(LuaString Key, LuaValue Value) {
+			if(Trie == null)
+				Trie = new Trie<LuaValue>();
+			if(Value != LuaNil.Nil && Value != null)
+				Trie[Key.Text] = Value;//Trie.Add(Key.Text, Value);
+			else
+				Trie.Remove(Key.Text);
+		}
 
-		// ContainsKey 
+		public void Add(string Key, LuaValue Value) {
+			if(Trie == null)
+				Trie = new Trie<LuaValue>();
+			if(Value != LuaNil.Nil && Value != null)
+				Trie[Key] = Value;//Trie.Add(Key, Value);
+			else
+				Trie.Remove(Key);
+		}
+		public void Add(long Key, LuaValue Value) {
+			if(Array == null)
+				Array = new List<LuaValue>();
+
+			if(Array.Count >= Key + 1) {
+				Array[(int)Key - 1] = Value;
+				return;
+			} else if(Array.Count * 2 >= Key + 1) {
+				while(Array.Count <= (Key+1)) {
+					Array.Add(LuaNil.Nil);
+				}
+				Array[(int)Key - 1] = Value;
+				return;
+			}
+			else {
+				LuaInteger LInt = new LuaInteger(Key);
+				Add(LInt, Value);
+			}
+
+		}
+		#endregion
+
+		#region Insert
+		public void Insert(long Key, LuaValue Value) {
+			if(Array == null)
+				Array = new List<LuaValue>();
+
+			Array.Insert((int)Key-1, Value);
+		}
+		#endregion
+
+		#region Remove
+		public void Remove(long Key) {
+			if(Array == null)
+				return;
+
+			if(Array.Count > (Key - 1)) {
+				Array.RemoveAt((int)Key - 1);
+			}
+		}
+		#endregion
+
+		#region ContainsKey 
 		public bool ContainsKey(LuaValue Key) {
 			if(Array != null) {
 				if(Key is LuaNumber) {
@@ -213,6 +234,9 @@ namespace Cheese
 				}
 			}
 
+			if(Key is LuaString)
+				return ContainsKey((Key as LuaString).Text);
+
 			if(HashMap == null)
 				return false;
 
@@ -220,21 +244,71 @@ namespace Cheese
 		}
 
 		public bool ContainsKey(string Key) {
-			if(HashMap == null)
+			if(Trie == null)
 				return false;
-
-			LuaString LKey = new LuaString(Key);
-			return HashMap.ContainsKey(LKey);
+			return Trie.ContainsKey(Key);
 		}
+		#endregion
 
+		#region Get
+		public LuaValue Get(LuaValue Key) {
+			if(Key is LuaString) {
+				return Get((Key as LuaString).Text);
+			}
 
-		// GetValue?
+			if(Key is LuaNumber) {
+				double NumVal = (Key as LuaNumber).Number;
+				if(NumVal % 1 == 0) {
+					long IntVal = (long)NumVal;
+					return Get(IntVal);
+				}
+			}
+
+			if(Key is LuaInteger) {
+				LuaValue R = Get((Key as LuaInteger).Integer);
+				if(R != LuaNil.Nil && R != null)
+					return R;
+			}
+
+			if(HashMap == null)
+				return LuaNil.Nil;
+			if(HashMap.ContainsKey(Key))
+				return HashMap[Key];
+			else
+				return LuaNil.Nil;
+		}
+		public LuaValue Get(LuaString Key) {
+			if(Trie == null)
+				return LuaNil.Nil;
+			if(Trie.ContainsKey(Key.Text)) {
+				return Trie[Key.Text];
+			}
+			else
+				return LuaNil.Nil;
+		}
+		public LuaValue Get(string Key) {
+			if(Trie == null)
+				return LuaNil.Nil;
+			if(Trie.ContainsKey(Key)) {
+				return Trie[Key];
+			}
+			else
+				return LuaNil.Nil;
+		}
+		public LuaValue Get(long Key) {
+			if(Array != null && Array.Count >= Key-1)
+				return Array[(int)Key-1];
+			return LuaNil.Nil;
+		}
+		#endregion
+
 
 		public struct Enumerator : IEnumerator<KeyValuePair<LuaValue, LuaValue>>, 
 		    IDisposable, IEnumerator  {
 
 			private LuaTable Source;
 			private IEnumerator<LuaValue> ArrayEnumer;
+			private IEnumerator<KeyValuePair<string,LuaValue>> TrieEnumer;
 			private IEnumerator<KeyValuePair<LuaValue,LuaValue>> HashEnumer;
 			private KeyValuePair<LuaValue, LuaValue> mCurrent;
 			long ArrayIndex;
@@ -242,6 +316,7 @@ namespace Cheese
 			{ 
 				eInit,
 				eArray,
+				eTrie,
 				eHash,
 				eEnd
 			};
@@ -254,6 +329,7 @@ namespace Cheese
 				disposed = false;
 				Source = Table;
 				ArrayEnumer = null;
+				TrieEnumer = null;
 				HashEnumer = null;
 				ArrayIndex = 0;
 				State = EState.eInit;
@@ -267,10 +343,12 @@ namespace Cheese
 
 				if(Source.Array != null)
 					ArrayEnumer = Source.Array.GetEnumerator();
+				if(Source.Trie != null)
+					TrieEnumer = Source.Trie.GetEnumerator();
 				if(Source.HashMap != null)
 					HashEnumer = Source.HashMap.GetEnumerator();
 
-				if(ArrayEnumer == null && HashEnumer == null)
+				if(ArrayEnumer == null && TrieEnumer == null && HashEnumer == null)
 					State = EState.eEnd;
 			}
 
@@ -293,6 +371,8 @@ namespace Cheese
 				if(State == EState.eInit) {
 					if(ArrayEnumer != null)
 						State = EState.eArray;
+					else if(TrieEnumer != null)
+						State = EState.eTrie;
 					else if(HashEnumer != null)
 						State = EState.eHash;
 					else
@@ -306,6 +386,23 @@ namespace Cheese
 						mCurrent = new KeyValuePair<LuaValue, LuaValue>(
 							new LuaInteger(ArrayIndex),
 							ArrayEnumer.Current);
+						return true;
+					} else {
+						if(TrieEnumer != null)
+							State = EState.eTrie;
+						else if(HashEnumer != null)
+							State = EState.eHash;
+						else
+							State = EState.eEnd;
+					}
+				}
+
+				if(State == EState.eTrie) {
+					bool Advanced = TrieEnumer.MoveNext();
+					if(Advanced) {
+						mCurrent = new KeyValuePair<LuaValue, LuaValue>(
+							new LuaString(TrieEnumer.Current.Key),
+							TrieEnumer.Current.Value);
 						return true;
 					} else {
 						if(HashEnumer != null)
@@ -341,6 +438,8 @@ namespace Cheese
 					disposed = true;
 					if(ArrayEnumer != null)
 						ArrayEnumer.Dispose();
+					if(TrieEnumer != null)
+						TrieEnumer.Dispose();
 					if(HashEnumer != null)
 						HashEnumer.Dispose();
 				}
