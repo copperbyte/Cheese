@@ -115,6 +115,7 @@ namespace Cheese.Machine
 			return;
 		}
 
+		//FIXME: Sort
 
 		internal static void LoadInto(LuaEnvironment Env, LuaTable Dest) {
 
@@ -123,7 +124,6 @@ namespace Cheese.Machine
 			LTable["concat"] = new LuaSysDelegate(TableLib.Concat);
 			LTable["insert"] = new LuaSysDelegate(TableLib.Insert);
 			LTable["maxn"] = new LuaSysDelegate(TableLib.MaxN);
-
 			LTable["remove"] = new LuaSysDelegate(TableLib.Remove);
 
 		

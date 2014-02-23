@@ -9,6 +9,34 @@ namespace Cheese
 	public abstract class LuaValue
 	{
 
+		public virtual long AsInteger() {
+			if(this is LuaInteger)
+				return (this as LuaInteger).Integer;
+			else if(this is LuaNumber)
+				return (long)(this as LuaNumber).Number;
+			else if(this is LuaString) {
+				if((this as LuaString).Text.Contains("."))
+					return (long)Convert.ToDouble((this as LuaString).Text);
+				else
+					return Convert.ToInt64((this as LuaString).Text); 
+			}
+			return 0;
+		}
+
+		public virtual double AsNumber() {
+			if(this is LuaInteger)
+				return (double)(this as LuaInteger).Integer;
+			else if(this is LuaNumber)
+				return (this as LuaNumber).Number;
+			else if(this is LuaString) {
+				return Convert.ToDouble((this as LuaString).Text); 
+			}
+			return 0.0;
+		}
+
+		public virtual string AsString() {
+			return this.ToString();
+		}
 	}
 
 

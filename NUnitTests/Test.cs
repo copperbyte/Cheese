@@ -650,6 +650,44 @@ namespace NUnitTests
 			Assert.AreEqual(2, (NextGen["generation"] as LuaInteger).Integer);
 		}
 
+
+		#region BaseLib
+		[Test()]
+		public void BaseToNumberTest()
+		{
+			string Code = @"
+				local num = 0;
+				num = tonumber(""123.45"");			
+				print(num); 
+				num = tonumber(""DEADBEEF"", 16);			
+				print(num); 				
+				";
+
+			string Expected = "123.45\r\n3735928559\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void BaseToIntegerTest()
+		{
+			string Code = @"
+				local int = 0;
+				int = tointeger(""123.45"");			
+				print(int); 
+				int = tointeger(123.45);			
+				print(int); 
+				int = tointeger(""DEADBEEF"", 16);			
+				print(int); 				
+				";
+
+			string Expected = "123\r\n123\r\n3735928559\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		#endregion
+
 		#region TableLib
 		[Test()]
 		public void TableConcatTest()
@@ -669,7 +707,6 @@ namespace NUnitTests
 
 			ConsoleCompareTest(Code, Expected);
 		}
-
 
 		[Test()]
 		public void TableInsertTest()
@@ -711,7 +748,6 @@ namespace NUnitTests
 
 			ConsoleCompareTest(Code, Expected);
 		}
-
 
 		[Test()]
 		public void TableRemoveTest()

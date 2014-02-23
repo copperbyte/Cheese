@@ -144,6 +144,68 @@ namespace Cheese.Machine
 			Stack[1] = new LuaInteger(0);
 		}
 
+		internal static void ToNumber(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Arg = Stack[0];
+			int Base = 10;
+
+			if(ArgC >= 3) {
+				LuaValue BaseVal = Stack[1];
+				Base = (int)BaseVal.AsInteger();
+			}
+
+			if(Arg is LuaNumber) {
+				Stack[-1] = Arg;
+				return;
+			} else if(Arg is LuaInteger) {
+				Stack[-1] = new LuaNumber(Arg.AsNumber());
+			} else if(Arg is LuaString) {
+				if(Base != 10) {
+					long I = Convert.ToInt64((Arg as LuaString).Text, Base);
+					Stack[-1] = new LuaNumber((double)I);
+					return;
+				}
+				else {
+					double D = Convert.ToDouble((Arg as LuaString).Text); 
+					Stack[-1] = new LuaNumber(D);
+				}
+			} else {
+				Stack[-1] = LuaNil.Nil;
+			}
+		}
+
+		internal static void ToInteger(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Arg = Stack[0];
+			int Base = 10;
+
+			if(ArgC >= 3) {
+				LuaValue BaseVal = Stack[1];
+				Base = (int)BaseVal.AsInteger();
+			}
+
+			if(Arg is LuaInteger) {
+				Stack[-1] = Arg;
+				return;
+			} else if(Arg is LuaNumber) {
+				Stack[-1] = new LuaInteger(Arg.AsInteger());
+			} else if(Arg is LuaString) {
+				if(Base != 10) {
+					long I = Convert.ToInt64((Arg as LuaString).Text, Base);
+					Stack[-1] = new LuaInteger(I);
+					return;
+				}
+				else {
+					Stack[-1] = new LuaInteger( Arg.AsInteger() );
+				}
+			} else {
+				Stack[-1] = LuaNil.Nil;
+			}
+		}
+
+		internal static void ToString(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
+			LuaValue Arg = Stack[0];
+			Stack[-1] = new LuaString(Arg.ToString());
+		}
+
 
 		internal static void LoadInto(LuaEnvironment Env, LuaTable Dest) {
 			Dest[new LuaString("print")] = new LuaSysDelegate(BasicLib.print);
@@ -151,6 +213,11 @@ namespace Cheese.Machine
 			Dest[new LuaString("pairs")] = new LuaSysDelegate(BasicLib.pairs);
 			Dest[new LuaString("ipairsaux")] = new LuaSysDelegate(BasicLib.ipairsaux);
 			Dest[new LuaString("ipairs")] = new LuaSysDelegate(BasicLib.ipairs);
+
+			Dest["tonumber"] = new LuaSysDelegate(BasicLib.ToNumber);
+			Dest["tointeger"] = new LuaSysDelegate(BasicLib.ToInteger);
+			Dest["tostring"] = new LuaSysDelegate(BasicLib.ToString);
+
 		}
 	}
 
