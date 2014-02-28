@@ -150,14 +150,14 @@ namespace Cheese.Machine
 
 			if(ArgC >= 3) {
 				LuaValue BaseVal = Stack[1];
-				Base = (int)BaseVal.AsInteger();
+				Base = (int)BaseVal.ToInteger();
 			}
 
 			if(Arg is LuaNumber) {
 				Stack[-1] = Arg;
 				return;
 			} else if(Arg is LuaInteger) {
-				Stack[-1] = new LuaNumber(Arg.AsNumber());
+				Stack[-1] = new LuaNumber(Arg.ToNumber());
 			} else if(Arg is LuaString) {
 				if(Base != 10) {
 					long I = Convert.ToInt64((Arg as LuaString).Text, Base);
@@ -179,14 +179,14 @@ namespace Cheese.Machine
 
 			if(ArgC >= 3) {
 				LuaValue BaseVal = Stack[1];
-				Base = (int)BaseVal.AsInteger();
+				Base = (int)BaseVal.ToInteger();
 			}
 
 			if(Arg is LuaInteger) {
 				Stack[-1] = Arg;
 				return;
 			} else if(Arg is LuaNumber) {
-				Stack[-1] = new LuaInteger(Arg.AsInteger());
+				Stack[-1] = new LuaInteger(Arg.ToInteger());
 			} else if(Arg is LuaString) {
 				if(Base != 10) {
 					long I = Convert.ToInt64((Arg as LuaString).Text, Base);
@@ -194,7 +194,7 @@ namespace Cheese.Machine
 					return;
 				}
 				else {
-					Stack[-1] = new LuaInteger( Arg.AsInteger() );
+					Stack[-1] = new LuaInteger( Arg.ToInteger() );
 				}
 			} else {
 				Stack[-1] = LuaNil.Nil;

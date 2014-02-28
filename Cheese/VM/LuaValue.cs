@@ -9,7 +9,7 @@ namespace Cheese
 	public abstract class LuaValue
 	{
 
-		public virtual long AsInteger() {
+		public virtual long ToInteger() {
 			if(this is LuaInteger)
 				return (this as LuaInteger).Integer;
 			else if(this is LuaNumber)
@@ -23,7 +23,7 @@ namespace Cheese
 			return 0;
 		}
 
-		public virtual double AsNumber() {
+		public virtual double ToNumber() {
 			if(this is LuaInteger)
 				return (double)(this as LuaInteger).Integer;
 			else if(this is LuaNumber)
@@ -34,9 +34,6 @@ namespace Cheese
 			return 0.0;
 		}
 
-		public virtual string AsString() {
-			return this.ToString();
-		}
 	}
 
 
