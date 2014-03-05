@@ -216,6 +216,25 @@ namespace Cheese
 		}
 		#endregion
 
+		#region Clear
+		public void Clear() {
+			if(Array != null) {
+				Array.Clear();
+				Array = null;
+			}
+
+			if (Trie != null) {
+				Trie.Clear ();
+				Trie = null;
+			}
+
+			if (HashMap != null) {
+				HashMap.Clear ();
+				HashMap = null;
+			}
+		}
+		#endregion
+
 		#region ContainsKey 
 		public bool ContainsKey(LuaValue Key) {
 			if(Array != null) {
