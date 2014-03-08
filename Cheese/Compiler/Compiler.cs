@@ -2630,7 +2630,10 @@ namespace Cheese
 			CompilerValue DestVal = null;
 			if(LVals != null && RVals != null && LVals.Count > RVals.Count) {
 				DestVal = LVals[RVals.Count];
-				CompValue = 1;
+				if(CompValue == 0)
+					CompValue = 1;
+				else
+					CompValue = 0;
 			}
 
 
@@ -2670,6 +2673,11 @@ namespace Cheese
 			// Logic only
 			//if(DestReg == null) 
 			if(InConditional) {
+				if(LVals == null)
+					LVals = new VList();
+				if(RVals == null)
+					RVals = new VList();
+				LVals.Add(DestReg);
 				for(int Loop = 0; Loop < LogiOp.Children.Count; Loop += 2) {
 
 					ParseNode Child = LogiOp.Children[Loop];
@@ -2678,8 +2686,12 @@ namespace Cheese
 					if(LogiOp.Children.Count > Loop+1)
 						NextOp = LogiOp.Children[Loop + 1];
 
-					CompilerValue LogiVal = CompileExp(Child, LVals, RVals)[0];
+					VList LogiVals = CompileExp(Child, LVals, RVals);
+					Console.WriteLine("LogiVals.Count: {0}", LogiVals.Count);
+					CompilerValue LogiVal = LogiVals[0];
+					Console.WriteLine("LogiVal: {0}", LogiVal);
 					CompilerValue LogiReg = GetAsRegister(LogiVal);
+					Console.WriteLine("LogiReg: {0}", LogiReg);
 					FreeRegister(LogiReg);
 					FinalV = LogiReg;
 
@@ -2702,9 +2714,11 @@ namespace Cheese
 			// Assignments
 			else {
 				PushBranch();
+				if(LVals == null)
+					LVals = new VList();
 				if(RVals == null)
 					RVals = new VList();
-				RVals.Add(DestReg);
+				LVals.Add(DestReg);
 
 				for(int Loop = 0; Loop < LogiOp.Children.Count; Loop += 2) {
 

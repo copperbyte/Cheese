@@ -267,13 +267,18 @@ namespace NUnitTests
 				function assign_comp()
 				  q = 4;
 				  u = 7;
-				  b = q <= u;
-				  print(""b: "",b);
+                  a = q == u;
+                  b = q ~= u;
+				  c = q < u;
+				  d = q > u;
+				  e = q <= u;
+				  f = q >= u;
+				  print(a,b,c,d,e,f);
 				end
 
 				assign_comp(); ";
 
-			string Expected = "b: \ttrue\r\n";
+			string Expected = "false\ttrue\ttrue\tfalse\ttrue\tfalse\r\n";
 
 			ConsoleCompareTest(Code, Expected);
 		}
@@ -370,6 +375,62 @@ namespace NUnitTests
 							+ "five > one\r\n"
 							+ "math >= three\r\n"
 							+ "one is not three\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+
+		[Test()]
+		public void AssignLogiTest()
+		{
+			string Code = @"
+				
+				local A,B,C = 0,1,nil;				
+
+				local D = (A and B);
+				local E = (A or B);
+				local F = (A and C);
+				local G = (A or C);
+				local H = (C and A);
+				local I = (C or A);
+				local J = (C or C or B or C or A);
+
+				print(D,E,F,G,H,I,J);				
+				";
+
+			string Expected = "1\t0\tnil\t0\tnil\t0\t1\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
+		[Test()]
+		public void ComplexIfTest()
+		{
+			string Code = @"
+				
+				local A,B,C,D = 0,1,1,0;				
+
+				if ( (A == B) and (C == D) ) then
+					print(""1"");
+				else 
+					print(""2"");
+				end
+
+				if ( (A == B) or (C == D) ) then
+					print(""3"");
+				else 
+					print(""4"");
+				end		
+
+				if ( (A == D) and (A ~= C) ) then
+					print(""5"");
+				else 
+					print(""6"");
+				end			
+
+				";
+
+			string Expected = "2\r\n4\r\n5\r\n";
 
 			ConsoleCompareTest(Code, Expected);
 		}
