@@ -368,6 +368,10 @@ namespace Cheese.Machine
 				// GETTABLE   //  R(A) := R(B)[RK(C)]
 				case Instruction.OP.GETTABLE: {
 					LuaTable TableValue = Stack[CurrOp.B] as LuaTable;
+					if (TableValue == null) {
+						Stack[CurrOp.A] = LuaNil.Nil;
+						continue;
+					}
 					LuaValue KeyValue = GetRK(CurrOp.C, CurrOp.rkC);
 					LuaValue ResultValue = TableValue[KeyValue];
 					Stack[CurrOp.A] = ResultValue;
