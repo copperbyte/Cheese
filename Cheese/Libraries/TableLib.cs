@@ -98,20 +98,23 @@ namespace Cheese.Machine
 		internal static void Remove(LuaEnvironment Env, VmStack Stack, int ArgC, int RetC) {
 			LuaTable TableArg = Stack[0] as LuaTable;
 
-			int Pos = 0;
+			if(TableArg != null) {
+				int Pos = 0;
 
-			if(ArgC == 2 ) { // 1 args, table 
-				Pos = TableArg.Length;
-			} else if(ArgC == 3) { // 3 args, table, pos
-				LuaValue PosVal = Stack[1];
-				if(PosVal is LuaInteger)
-					Pos = (int)(PosVal as LuaInteger).Integer;
-				else if(PosVal is LuaNumber)
-					Pos = (int)(PosVal as LuaNumber).Number;
+				if(ArgC == 2) { // 1 args, table 
+					Pos = TableArg.Length;
+				} else if(ArgC == 3) { // 3 args, table, pos
+					LuaValue PosVal = Stack[1];
+					if(PosVal is LuaInteger)
+						Pos = (int)(PosVal as LuaInteger).Integer;
+					else if(PosVal is LuaNumber)
+						Pos = (int)(PosVal as LuaNumber).Number;
+				}
+
+				TableArg.Remove(Pos);
 			}
 
-			TableArg.Remove(Pos);
-
+			Stack[-1] = LuaNil.Nil;
 			return;
 		}
 

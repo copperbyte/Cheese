@@ -833,6 +833,32 @@ namespace NUnitTests
 			ConsoleCompareTest(Code, Expected);
 		}
 
+		[Test()]
+		public void TableRemoveInLoopTest()
+		{
+
+			string Code = @"
+				local tt = { ""sauce"", ""juice"", ""can"" };
+				
+				local vic = ""juice"";
+				for i,v in ipairs(tt) do
+		    		if(v == vic) then
+		    			table.remove(tt, i);
+		    			break;
+		    		end
+				end
+				
+				for k,v in pairs(tt) do
+		    		print(v);
+				end
+
+				";
+
+			string Expected = "sauce\r\ncan\r\n";
+
+			ConsoleCompareTest(Code, Expected);
+		}
+
 		#endregion
 
 	}

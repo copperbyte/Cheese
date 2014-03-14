@@ -301,7 +301,7 @@ namespace Cheese.Machine
 		private void ExecuteMachine(int CallDepth=1) {
 
 			while(true) {
-				if(Stack == null || Stack.Func == null || 
+				if(Stack == null || Stack.Func == null ||  
 				   ProgramCounter >= Stack.Func.Instructions.Count)
 					break;
 
